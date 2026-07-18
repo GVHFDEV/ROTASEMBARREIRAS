@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { TouristPoint } from "../data/mockData";
+import { TouristPoint } from "@/types/point";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -9,12 +9,21 @@ interface CustomMapProps {
   points: TouristPoint[];
   selectedPoint: TouristPoint | null;
   onSelectPoint: (point: TouristPoint) => void;
+  userLocation: [number, number] | null;
+  flyToCoords: [number, number] | null;
 }
 
-export default function CustomMap({ points, selectedPoint, onSelectPoint }: CustomMapProps) {
+export default function CustomMap({
+  points,
+  selectedPoint,
+  onSelectPoint,
+  userLocation,
+  flyToCoords,
+}: CustomMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<{ [key: string]: L.Marker }>({});
+  const userLocationMarkerRef = useRef<L.Marker | null>(null);
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -31,7 +40,7 @@ export default function CustomMap({ points, selectedPoint, onSelectPoint }: Cust
       attributionControl: false,
     });
 
-    // Premium clean tile layer: CartoDB Positron (perfect match for our off-white design system)
+    // Premium clean tile layer: CartoDB Positron
     L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
       maxZoom: 19,
     }).addTo(map);
@@ -95,7 +104,35 @@ export default function CustomMap({ points, selectedPoint, onSelectPoint }: Cust
     });
   }, [points, selectedPoint, onSelectPoint]);
 
-  // Fly to selected point if changed from outside (e.g. SearchBar or QRCodeScanner)
+  // Handle User Geolocation Blue Pulse Dot
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (userLocationMarkerRef.current) {
+      userLocationMarkerRef.current.remove();
+      userLocationMarkerRef.current = null;
+    }
+
+    if (userLocation) {
+      const blueDotIcon = L.divIcon({
+        className: "user-location-marker",
+        html: `
+          <div class="relative flex items-center justify-center">
+            <span class="absolute w-8 h-8 rounded-full bg-blue-500/30 user-location-pulse"></span>
+            <div class="w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-md"></div>
+          </div>
+        `,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+      });
+
+      userLocationMarkerRef.current = L.marker(userLocation, { icon: blueDotIcon })
+        .addTo(map);
+    }
+  }, [userLocation]);
+
+  // Fly to selected point if changed from outside
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !selectedPoint) return;
@@ -106,8 +143,19 @@ export default function CustomMap({ points, selectedPoint, onSelectPoint }: Cust
     });
   }, [selectedPoint]);
 
+  // Fly to user coordinates on location centering trigger
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !flyToCoords) return;
+
+    map.flyTo(flyToCoords, 15, {
+      animate: true,
+      duration: 1.5,
+    });
+  }, [flyToCoords]);
+
   return (
-    <div className="relative w-full h-[calc(100vh-64px)] overflow-hidden select-none">
+    <div className="relative w-full h-full overflow-hidden select-none">
       {/* Map Container Element */}
       <div ref={mapContainerRef} className="w-full h-full z-10" />
     </div>

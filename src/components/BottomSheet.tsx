@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { TouristPoint } from "../data/mockData";
+import { TouristPoint } from "@/types/point";
 import { X, Accessibility, Volume2, Bookmark, Eye } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 

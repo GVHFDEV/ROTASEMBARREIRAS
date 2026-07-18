@@ -10,7 +10,7 @@ interface BottomNavProps {
 
 export default function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
   return (
-    <div className="bg-white border-t border-gray-100 px-4 py-3 pb-safe-bottom z-40 select-none flex-shrink-0">
+    <div className="relative bg-white border-t border-gray-100 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)] z-40 select-none flex-shrink-0">
       <div className="flex w-full max-w-md mx-auto items-center justify-around h-16">
         
         {/* Tab Explorar */}

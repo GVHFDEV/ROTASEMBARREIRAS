@@ -1,26 +1,28 @@
 /** Mirrors Supabase schema. Keep in sync w/ migrations.sql */
 
-export interface AccessibilityInfo {
-  wheelchair: boolean;
-  audio: boolean;
-  braille: boolean;
-  libras: boolean;
-  details: string[];
-}
-
-export interface TouristPointRow {
+/** Row shape of public.pontos, as returned by PostgREST. */
+export interface PontoRow {
   id: string;
-  name: string;
-  category: string;
-  lat: number;
-  lng: number;
-  image: string;
-  description: string;
-  accessibility: AccessibilityInfo;
-  history: string;
-  address: string;
-  qr_code_value: string;
-  created_at: string;
+  nome: string;
+  categoria: string;
+  latitude: number;
+  longitude: number;
+  endereco: string | null;
+  descricao_curta: string | null;
+  descricao_longa: string | null;
+  imagem_capa: string | null;
+  galeria_imagens: string[];
+  acessibilidade_rampa: boolean;
+  acessibilidade_audio: boolean;
+  acessibilidade_braille: boolean;
+  acessibilidade_libras: boolean;
+  acessibilidade_detalhes: string[];
+  audio_url: string | null;
+  audiodescricao_url: string | null;
+  video_libras_url: string | null;
+  qr_code_value: string | null;
+  criado_em: string;
+  atualizado_em: string;
 }
 
 export interface UserSearchRow {

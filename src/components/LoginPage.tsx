@@ -172,8 +172,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="w-full h-screen bg-bg-app flex items-center justify-center font-sans antialiased">
-      <div className="relative w-full max-w-md h-screen md:max-h-[850px] md:rounded-[40px] md:shadow-2xl md:border-[8px] md:border-zinc-800 bg-bg-app overflow-hidden flex flex-col justify-between pb-8">
+    <div className="w-full h-dvh bg-bg-app flex items-center justify-center font-sans antialiased">
+      <div className="relative w-full max-w-md h-dvh md:max-h-[850px] md:rounded-[40px] md:shadow-2xl md:border-[8px] md:border-zinc-800 bg-bg-app overflow-hidden flex flex-col justify-between pb-8">
         
         {/* Status Bar simulation */}
         <div className="hidden md:flex justify-between items-center px-6 py-2 bg-white text-[10px] font-bold text-text-secondary select-none flex-shrink-0">

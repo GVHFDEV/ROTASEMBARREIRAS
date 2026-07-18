@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Search, QrCode, X } from "lucide-react";
-import { TouristPoint } from "../data/mockData";
+import { TouristPoint } from "@/types/point";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface SearchBarProps {
@@ -62,7 +62,7 @@ export default function SearchBar({ points, onSelectPoint, onOpenScanner, select
   };
 
   return (
-    <div ref={containerRef} className="absolute top-5 left-5 right-5 z-40 max-w-md mx-auto">
+    <div ref={containerRef} className="absolute top-[calc(env(safe-area-inset-top)+16px)] left-5 right-5 z-50 max-w-md mx-auto">
       {/* Taller input container (h-14) for better accessibility */}
       <div className="relative flex items-center bg-white border border-gray-150 shadow-lg rounded-full px-5 py-2 h-14 transition-all duration-200 focus-within:border-brand/50 focus-within:ring-2 focus-within:ring-brand/10">
         {/* Search Icon - larger (w-5.5) */}

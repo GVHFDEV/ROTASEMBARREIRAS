@@ -22,13 +22,24 @@
   --foreground: #222E2D;
 }
 
+html, body {
+  overflow: hidden;
+  height: 100dvh;
+  width: 100vw;
+  overscroll-behavior: none;
+}
+
 body {
   background-color: #FAF8F5;
   color: #222E2D;
   font-family: var(--font-plus-jakarta-sans), ui-sans-serif, system-ui, sans-serif;
-  overflow-x: hidden;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Force minimum font-size of 16px on inputs/textareas to prevent iOS Safari auto-zoom on focus */
+input, select, textarea {
+  font-size: 16px !important;
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */
@@ -46,3 +57,25 @@ body {
 .tap-highlight-none {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* Pulse blue animation for user location dot */
+@keyframes pulse-blue {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.5);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 8px rgba(37, 99, 235, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
+
+.user-location-pulse {
+  animation: pulse-blue 2s infinite;
+  border-radius: 9999px;
+}
+

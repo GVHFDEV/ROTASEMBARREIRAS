@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { TouristPoint } from "../data/mockData";
+import { TouristPoint } from "@/types/point";
 import { Mail, ChevronRight, History, Accessibility, LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -52,7 +52,7 @@ export default function ProfileView({ searchedPoints, onSelectPoint }: ProfileVi
   const initials = displayName.slice(0, 2).toUpperCase();
 
   return (
-    <div className="w-full min-h-screen bg-bg-app pb-28 pt-8 px-6 max-w-md mx-auto flex flex-col gap-8">
+    <div className="w-full min-h-full bg-bg-app pb-28 pt-[calc(env(safe-area-inset-top)+20px)] px-6 max-w-md mx-auto flex flex-col gap-8">
       <h2 className="text-center font-black text-xl text-text-main">Perfil do Usuário</h2>
 
       {/* User Card */}

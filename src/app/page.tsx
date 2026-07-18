@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { touristPoints as fallbackPoints, TouristPoint } from "../data/mockData";
+import { TouristPoint } from "@/types/point";
 import BottomNav from "../components/BottomNav";
 import SearchBar from "../components/SearchBar";
 import dynamic from "next/dynamic";
@@ -11,46 +11,114 @@ import PointDetails from "../components/PointDetails";
 import ProfileView from "../components/ProfileView";
 import QRCodeScanner from "../components/QRCodeScanner";
 import LoginPage from "../components/LoginPage";
+import ExploreBottomSheet from "../components/ExploreBottomSheet";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { fetchTouristPoints, fetchSearchHistory, recordSearch } from "@/services/pointsService";
+import { Landmark, Trees, Utensils, Sparkles, Compass, Navigation } from "lucide-react";
 
 function LoadingScreen() {
   return (
-    <div className="w-full h-screen flex items-center justify-center bg-bg-app">
+    <div className="w-full h-dvh flex items-center justify-center bg-bg-app">
       <div className="w-10 h-10 border-4 border-brand border-t-transparent rounded-full animate-spin" />
     </div>
   );
 }
 
+const CATEGORIES = ["Todos", "Patrimônio", "Cultura", "Lazer", "Gastronomia", "Natureza", "Religião"];
+
+function getCategoryIcon(cat: string) {
+  switch (cat.toLowerCase()) {
+    case "patrimônio":
+      return <Landmark className="w-4 h-4" />;
+    case "cultura":
+      return <Sparkles className="w-4 h-4" />;
+    case "lazer":
+      return <Trees className="w-4 h-4" />;
+    case "gastronomia":
+      return <Utensils className="w-4 h-4" />;
+    case "natureza":
+      return <Compass className="w-4 h-4" />;
+    case "religião":
+      return <Landmark className="w-4 h-4" />;
+    default:
+      return <Compass className="w-4 h-4" />;
+  }
+}
+
 export default function App() {
   const { user, loading: authLoading } = useAuth();
 
-  const [points, setPoints] = useState<TouristPoint[]>(fallbackPoints);
+  const [points, setPoints] = useState<TouristPoint[]>([]);
   const [activeTab, setActiveTab] = useState<"home" | "profile">("home");
   const [selectedPoint, setSelectedPoint] = useState<TouristPoint | null>(null);
   const [activeDetailsPoint, setActiveDetailsPoint] = useState<TouristPoint | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [searchedPoints, setSearchedPoints] = useState<TouristPoint[]>([]);
 
-  // Load points + user history once authenticated
+  // Map Filter and Geolocation states
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [flyToCoords, setFlyToCoords] = useState<[number, number] | null>(null);
+  const [exploreSheetState, setExploreSheetState] = useState<"collapsed" | "expanded">("collapsed");
+
+  // Load points from Supabase (public.pontos) + user history once authenticated.
+  // No mock fallback — table is single source of truth, new cadastro rows show
+  // up automatically on next fetch, no code change needed.
   useEffect(() => {
     if (!user) return;
 
     fetchTouristPoints()
       .then(setPoints)
-      .catch(() => setPoints(fallbackPoints)); // keep mock as fallback if fetch fails
+      .catch(() => setPoints([]));
 
     fetchSearchHistory(user.id)
       .then(setSearchedPoints)
       .catch(() => setSearchedPoints([]));
   }, [user]);
 
+  // Request User Geolocation on Mount
+  useEffect(() => {
+    if (!user) return;
+
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
+          setUserLocation(coords);
+          setFlyToCoords(coords);
+        },
+        (error) => {
+          console.warn("Geolocation warning:", error.message);
+        },
+        { enableHighAccuracy: true }
+      );
+    }
+  }, [user]);
+
+  const handleRecenter = () => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
+          setUserLocation(coords);
+          setFlyToCoords(coords);
+        },
+        () => {
+          alert("Não foi possível acessar a geolocalização. Por favor, ative as permissões de localização no seu navegador.");
+        },
+        { enableHighAccuracy: true }
+      );
+    } else {
+      alert("Geolocalização não é suportada por este dispositivo.");
+    }
+  };
+
   const persistSearch = useCallback(
     (pointId: string) => {
       if (!user) return;
       recordSearch(user.id, pointId).catch(() => {
-        // non-critical — history sync fails silently, UI already updated optimistically
+        // non-critical
       });
     },
     [user]
@@ -68,6 +136,8 @@ export default function App() {
 
   const handleSelectPointFromMapOrSearch = (point: TouristPoint) => {
     setSelectedPoint(point);
+    // Center map on selected point coords
+    setFlyToCoords([point.coords.lat, point.coords.lng]);
   };
 
   const addToHistory = (point: TouristPoint) => {
@@ -87,10 +157,16 @@ export default function App() {
     setActiveDetailsPoint(point);
   };
 
-  return (
-    <main className="w-full min-h-screen bg-zinc-100 flex items-center justify-center font-sans antialiased">
-      <div className="relative w-full max-w-md h-screen md:max-h-[850px] md:rounded-[40px] md:shadow-2xl md:border-[8px] md:border-zinc-800 bg-bg-app overflow-hidden flex flex-col">
+  // Filter tourist points according to active category tag (using case-insensitive substring matching)
+  const filteredPoints = selectedCategory
+    ? points.filter((p) => p.category.toLowerCase().includes(selectedCategory.toLowerCase()))
+    : points;
 
+  return (
+    <main className="w-full min-h-dvh bg-zinc-100 flex items-center justify-center font-sans antialiased">
+      <div className="relative w-full max-w-md h-dvh md:max-h-[850px] md:rounded-[40px] md:shadow-2xl md:border-[8px] md:border-zinc-800 bg-bg-app overflow-hidden flex flex-col">
+
+        {/* Status Bar simulation */}
         <div className="hidden md:flex justify-between items-center px-6 py-2 bg-white text-[10px] font-bold text-text-secondary select-none flex-shrink-0">
           <span>1:41</span>
           <div className="w-32 h-4.5 bg-black rounded-full absolute left-1/2 -translate-x-1/2 top-1.5" />
@@ -110,19 +186,64 @@ export default function App() {
                 exit={{ opacity: 0 }}
                 className="w-full h-full relative"
               >
+                {/* SearchBar overlay on map */}
                 <SearchBar
-                  points={points}
+                  points={filteredPoints}
                   onSelectPoint={handleSelectPointFromMapOrSearch}
                   onOpenScanner={() => setIsScannerOpen(true)}
                   selectedPointId={selectedPoint?.id}
                 />
 
+                {/* Horizontal Category Badges list under Searchbar */}
+                <div className="absolute top-[calc(env(safe-area-inset-top)+84px)] left-0 right-0 z-40 overflow-x-auto no-scrollbar flex gap-2 px-5 py-1">
+                  {CATEGORIES.map((cat) => {
+                    const isSelected =
+                      cat === "Todos" ? selectedCategory === null : selectedCategory === cat;
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat === "Todos" ? null : cat)}
+                        className={`flex items-center gap-1.5 px-4.5 py-2.5 rounded-full text-xs font-bold tracking-wide shadow-md border transition-all flex-shrink-0 active:scale-95 cursor-pointer ${
+                          isSelected
+                            ? "bg-brand border-brand text-white"
+                            : "bg-white border-gray-150 text-text-main hover:bg-gray-50"
+                        }`}
+                      >
+                        {getCategoryIcon(cat)}
+                        {cat}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Interactive Leaflet Map */}
                 <CustomMap
-                  points={points}
+                  points={filteredPoints}
                   selectedPoint={selectedPoint}
                   onSelectPoint={handleSelectPointFromMapOrSearch}
+                  userLocation={userLocation}
+                  flyToCoords={flyToCoords}
                 />
 
+                {/* Floating GPS Recenter button above Bottom Sheet */}
+                <AnimatePresence>
+                  {exploreSheetState === "collapsed" && (
+                    <motion.button
+                      key="recenter-btn"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ duration: 0.2 }}
+                      onClick={handleRecenter}
+                      className="absolute bottom-[106px] right-5 z-40 w-13 h-13 rounded-full bg-white text-brand shadow-xl border border-gray-100/50 flex items-center justify-center hover:bg-gray-50 transition-all active:scale-90"
+                      title="Centralizar na minha localização"
+                    >
+                      <Navigation className="w-6 h-6 stroke-[2.3]" />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+
+                {/* Selected Point Summary Card */}
                 <BottomSheet
                   point={selectedPoint}
                   onClose={() => setSelectedPoint(null)}
@@ -148,6 +269,17 @@ export default function App() {
 
         <BottomNav activeTab={activeTab} setActiveTab={handleSetActiveTab} />
 
+        {/* Persistent Google-Maps-like Bottom Sheet (Rendered at root layout to cover bottom navigation bar when expanded) */}
+        <AnimatePresence>
+          {activeTab === "home" && !selectedPoint && !activeDetailsPoint && !isScannerOpen && (
+            <ExploreBottomSheet
+              key="explore-bottom-sheet"
+              currentState={exploreSheetState}
+              setCurrentState={setExploreSheetState}
+            />
+          )}
+        </AnimatePresence>
+
         <AnimatePresence>
           {activeDetailsPoint && (
             <PointDetails point={activeDetailsPoint} onBack={() => setActiveDetailsPoint(null)} />
@@ -157,7 +289,6 @@ export default function App() {
         <AnimatePresence>
           {isScannerOpen && (
             <QRCodeScanner
-              points={points}
               onClose={() => setIsScannerOpen(false)}
               onScanSuccess={handleScanSuccess}
             />

@@ -1,10 +1,29 @@
 -- ============================================================
 -- Rota sem Barreiras — Supabase schema + RLS
--- Run in Supabase SQL Editor, in order, once.
+-- Run in Supabase SQL Editor, in order, once, on a fresh project.
+-- Safe to re-run: RESET block below drops everything this script
+-- creates first, so partial/previous runs don't cause "already
+-- exists" errors. Fine for dev setup — do NOT run this reset block
+-- against a project with real user data, it deletes it.
 -- Password hashing: handled internally by Supabase Auth (GoTrue,
 -- bcrypt). App code never touches raw or hashed passwords — do NOT
 -- build custom password columns/logic.
 -- ============================================================
+
+-- ---------- RESET (drop if exists, children before parents) ----------
+-- Note: trigger on public.pontos is NOT dropped explicitly here —
+-- "drop trigger ... on public.pontos" errors if pontos doesn't exist
+-- yet (IF EXISTS only covers the trigger name, not the table). The
+-- "drop table public.pontos cascade" below removes its trigger too.
+drop trigger if exists on_auth_user_created on auth.users;
+drop function if exists public.handle_new_user();
+drop function if exists public.set_atualizado_em();
+drop table if exists public.user_favorites cascade;
+drop table if exists public.user_searches cascade;
+drop table if exists public.pontos cascade;
+drop table if exists public.accessibility_preferences cascade;
+drop table if exists public.profiles cascade;
+drop table if exists public.tourist_points cascade; -- old table name from earlier schema version, if present
 
 -- ---------- profiles (1:1 w/ auth.users) ----------
 create table public.profiles (
@@ -44,33 +63,95 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- ---------- tourist_points (public read, no user data) ----------
-create table public.tourist_points (
-  id text primary key,
-  name text not null,
-  category text not null,
-  lat double precision not null,
-  lng double precision not null,
-  image text,
-  description text,
-  accessibility jsonb not null default '{}',
-  history text,
-  address text,
+-- ============================================================
+-- pontos — tourist points table
+-- Manually populated by admin via Supabase Table Editor.
+-- RLS: authenticated users can READ. No insert/update/delete
+-- policy exists for regular roles -> anon/authenticated cannot
+-- write. Dashboard Table Editor writes bypass RLS (runs as
+-- superuser), so manual cadastro still works fine.
+-- ============================================================
+create table public.pontos (
+  id uuid primary key default gen_random_uuid(),
+
+  nome text not null,
+  categoria text not null,
+
+  -- map coordinates
+  latitude double precision not null,
+  longitude double precision not null,
+
+  endereco text,
+
+  -- short = card/preview text, long = full detail-screen text
+  descricao_curta text,
+  descricao_longa text,
+
+  -- cover image + gallery (Storage public URLs)
+  imagem_capa text,
+  galeria_imagens text[] not null default '{}',
+
+  -- accessibility flags
+  acessibilidade_rampa boolean not null default false,
+  acessibilidade_audio boolean not null default false,
+  acessibilidade_braille boolean not null default false,
+  acessibilidade_libras boolean not null default false,
+  acessibilidade_detalhes text[] not null default '{}',
+
+  -- accessibility media (Storage public URLs)
+  audio_url text,
+  audiodescricao_url text,
+  video_libras_url text,
+
   qr_code_value text unique,
-  created_at timestamptz default now()
+
+  criado_em timestamptz not null default now(),
+  atualizado_em timestamptz not null default now()
 );
 
-alter table public.tourist_points enable row level security;
+alter table public.pontos enable row level security;
 
-create policy "tourist_points_public_read" on public.tourist_points
-  for select using (true);
--- no insert/update/delete policy -> only service_role (server-only, e.g. admin script) can write.
+create policy "pontos_select_authenticated" on public.pontos
+  for select
+  to authenticated
+  using (true);
+-- no insert/update/delete policy -> regular users (anon + authenticated) blocked from writing.
+
+-- keep atualizado_em fresh on manual edits
+create function public.set_atualizado_em()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.atualizado_em = now();
+  return new;
+end;
+$$;
+
+create trigger pontos_set_atualizado_em
+  before update on public.pontos
+  for each row execute procedure public.set_atualizado_em();
+
+-- Explicit named UNIQUE constraint on qr_code_value. Column already
+-- declares "unique" inline above, but this block is here in case
+-- you're applying this against an existing pontos table that was
+-- created without it (e.g. edited manually in dashboard) — safe to
+-- run repeatedly, skips if constraint with this name already exists.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'pontos_qr_code_value_key'
+  ) then
+    alter table public.pontos
+      add constraint pontos_qr_code_value_key unique (qr_code_value);
+  end if;
+end $$;
 
 -- ---------- user_searches (history) ----------
 create table public.user_searches (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete cascade not null,
-  point_id text references public.tourist_points(id) on delete cascade not null,
+  point_id uuid references public.pontos(id) on delete cascade not null,
   searched_at timestamptz default now()
 );
 
@@ -91,7 +172,7 @@ create policy "user_searches_delete_own" on public.user_searches
 create table public.user_favorites (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete cascade not null,
-  point_id text references public.tourist_points(id) on delete cascade not null,
+  point_id uuid references public.pontos(id) on delete cascade not null,
   created_at timestamptz default now(),
   unique(user_id, point_id)
 );
@@ -124,40 +205,23 @@ create policy "accessibility_prefs_all_own" on public.accessibility_preferences
 -- ============================================================
 
 -- ============================================================
--- Seed: run AFTER above. Uses existing mockData content.
+-- Reference only — do NOT run. Shows expected column shape for
+-- one manually-inserted row. Real cadastro happens via Table Editor.
 -- ============================================================
-insert into public.tourist_points (id, name, category, lat, lng, image, description, accessibility, history, address, qr_code_value) values
-('ibituruna', 'Pico da Ibituruna', 'Natureza & Aventura', -18.8872, -41.9161,
- 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=800&auto=format&fit=crop',
- 'Com 1.123 metros de altitude, a Ibituruna é uma das principais plataformas de voo livre do mundo, oferecendo uma vista deslumbrante do Rio Doce e de Governador Valadares.',
- '{"wheelchair": true, "audio": true, "braille": true, "libras": false, "details": ["Rampa de acesso ao mirante principal com inclinação regulamentar", "Banheiros totalmente adaptados e acessíveis", "Piso tátil de alerta nas bordas de segurança", "Audiodescrição das paisagens disponível via app/QR Code"]}',
- 'A palavra ''Ibituruna'' vem do tupi-guarani e significa ''serra negra''. O local serviu como marco geográfico para os antigos bandeirantes e hoje é considerado o patrimônio ambiental mais precioso da região.',
- 'Estrada de Acesso ao Pico, Governador Valadares - MG', 'rota-ibituruna'),
-
-('estacao', 'Praça da Estação Ferroviária', 'Patrimônio Histórico', -18.8582, -41.9485,
- 'https://images.unsplash.com/photo-1541336032412-2048a678540d?q=80&w=800&auto=format&fit=crop',
- 'Ponto de passagem da famosa Estrada de Ferro Vitória a Minas, a praça abriga a antiga locomotiva Maria Fumaça, símbolo da era de ouro do transporte ferroviário.',
- '{"wheelchair": true, "audio": true, "braille": true, "libras": true, "details": ["Entrada plana e sem degraus para toda a área da praça", "Placas informativas em Braille instaladas ao lado da locomotiva", "Vídeo-guia em Libras acessível via QR Code", "Calçadão amplo e liso, facilitando o trânsito de cadeiras de rodas"]}',
- 'Inaugurada em 1910, a Estação de Governador Valadares impulsionou o desenvolvimento econômico da cidade.',
- 'Rua Leonardo Cristino, Centro, Governador Valadares - MG', 'rota-estacao'),
-
-('mercado', 'Mercado Municipal', 'Cultura & Gastronomia', -18.8596, -41.9547,
- 'https://images.unsplash.com/photo-1533900298318-6b8da08a523e?q=80&w=800&auto=format&fit=crop',
- 'O coração comercial e gastronômico da cidade, onde se encontram queijos artesanais, doces típicos mineiros, artesanatos regionais e o famoso pastel de feira.',
- '{"wheelchair": true, "audio": false, "braille": false, "libras": true, "details": ["Elevador moderno de acesso ao segundo pavimento", "Sanitários adaptados unissex na área central", "Corredores largos e livres de obstáculos", "Balcões de atendimento com altura rebaixada em lojas selecionadas"]}',
- 'Fundado em 1948, o Mercado Municipal é um ponto de encontro tradicional dos valadarenses.',
- 'Rua Israel Pinheiro, 2000, Centro, Governador Valadares - MG', 'rota-mercado'),
-
-('catedral', 'Catedral de Santo Antônio', 'Religião & Arquitetura', -18.8561, -41.9489,
- 'https://images.unsplash.com/photo-1548625361-155deee223cb?q=80&w=800&auto=format&fit=crop',
- 'Principal templo católico de Governador Valadares, com uma arquitetura imponente e vitrais artísticos que retratam passagens bíblicas e a história da paróquia.',
- '{"wheelchair": true, "audio": true, "braille": false, "libras": true, "details": ["Rampa lateral suave com corrimão duplo", "Espaço reservado nas primeiras fileiras para cadeirantes", "Guias de áudio detalhando a arquitetura dos vitrais", "Intérprete de Libras disponível nas missas solenes de domingo"]}',
- 'A capela original de Santo Antônio foi erguida na década de 1910, tornando-se Catedral Diocesana em 1956.',
- 'Praça Dom Manoel, Centro, Governador Valadares - MG', 'rota-catedral'),
-
-('deck', 'Deck do Rio Doce (Ilha dos Araújos)', 'Lazer & Paisagem', -18.8683, -41.9680,
- 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?q=80&w=800&auto=format&fit=crop',
- 'Um espaço de convivência e lazer às margens do Rio Doce na charmosa Ilha dos Araújos. Ideal para caminhadas, pôr do sol e contemplação da natureza urbana.',
- '{"wheelchair": true, "audio": true, "braille": true, "libras": false, "details": ["Pistas de caminhada asfaltadas e totalmente lisas", "Rampas metálicas antiderrapantes de acesso ao deck de madeira", "Mapas táteis em Braille na entrada do calçadão", "Bancos de repouso ergonomicamente adaptados e espaçados"]}',
- 'O Rio Doce é a alma geográfica de Governador Valadares. O calçadão da Ilha dos Araújos foi revitalizado para integrar os moradores à bacia hidrográfica.',
- 'Calçadão da Ilha dos Araújos, Governador Valadares - MG', 'rota-deck');
+-- insert into public.pontos (
+--   nome, categoria, latitude, longitude, endereco,
+--   descricao_curta, descricao_longa, imagem_capa, galeria_imagens,
+--   acessibilidade_rampa, acessibilidade_audio, acessibilidade_braille, acessibilidade_libras,
+--   acessibilidade_detalhes, audio_url, audiodescricao_url, video_libras_url, qr_code_value
+-- ) values (
+--   'Pico da Ibituruna', 'Natureza & Aventura', -18.8872, -41.9161,
+--   'Estrada de Acesso ao Pico, Governador Valadares - MG',
+--   'Vista deslumbrante do Rio Doce a 1.123m de altitude.',
+--   'A palavra Ibituruna vem do tupi-guarani e significa serra negra...',
+--   'https://<project>.supabase.co/storage/v1/object/public/pontos-imagens/ibituruna/capa.jpg',
+--   array['https://.../galeria1.jpg', 'https://.../galeria2.jpg'],
+--   true, true, true, false,
+--   array['Rampa de acesso ao mirante', 'Banheiros adaptados'],
+--   'https://.../audio.mp3', 'https://.../audiodescricao.mp3', null,
+--   'rota-ibituruna'
+-- );
