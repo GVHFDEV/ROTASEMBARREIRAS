@@ -1,65 +1,155 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useState } from "react";
+import { touristPoints, TouristPoint } from "../data/mockData";
+import BottomNav from "../components/BottomNav";
+import SearchBar from "../components/SearchBar";
+import dynamic from "next/dynamic";
+const CustomMap = dynamic(() => import("../components/CustomMap"), { ssr: false });
+import BottomSheet from "../components/BottomSheet";
+import PointDetails from "../components/PointDetails";
+import ProfileView from "../components/ProfileView";
+import QRCodeScanner from "../components/QRCodeScanner";
+import { AnimatePresence, motion } from "framer-motion";
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState<"home" | "profile">("home");
+  const [selectedPoint, setSelectedPoint] = useState<TouristPoint | null>(null);
+  const [activeDetailsPoint, setActiveDetailsPoint] = useState<TouristPoint | null>(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  
+  // History of searched/visited points (start with 2 points for demonstration purposes)
+  const [searchedPoints, setSearchedPoints] = useState<TouristPoint[]>([
+    touristPoints[1], // Praça da Estação
+    touristPoints[4], // Deck do Rio Doce
+  ]);
+
+  const handleSetActiveTab = (tab: "home" | "profile") => {
+    setActiveTab(tab);
+    // Reset overlays when switching pages to prevent overlapping
+    setActiveDetailsPoint(null);
+    setIsScannerOpen(false);
+    setSelectedPoint(null);
+  };
+
+  const handleSelectPointFromMapOrSearch = (point: TouristPoint) => {
+    setSelectedPoint(point);
+  };
+
+  const handleViewDetails = (point: TouristPoint) => {
+    // Add to history if not already present
+    if (!searchedPoints.some((p) => p.id === point.id)) {
+      setSearchedPoints((prev) => [point, ...prev]);
+    }
+    setActiveDetailsPoint(point);
+    setSelectedPoint(null); // Close bottom preview sheet
+  };
+
+  const handleScanSuccess = (point: TouristPoint) => {
+    setIsScannerOpen(false);
+    
+    // Add to history if not already present
+    if (!searchedPoints.some((p) => p.id === point.id)) {
+      setSearchedPoints((prev) => [point, ...prev]);
+    }
+    
+    // Open details directly for scanned point
+    setActiveDetailsPoint(point);
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="w-full min-h-screen bg-zinc-100 flex items-center justify-center font-sans antialiased">
+      {/* 
+        Mock Device Shell for Desktop, Fullscreen on Mobile.
+        Enforces a clean mobile-first view-frame.
+      */}
+      <div className="relative w-full max-w-md h-screen md:max-h-[850px] md:rounded-[40px] md:shadow-2xl md:border-[8px] md:border-zinc-800 bg-bg-app overflow-hidden flex flex-col">
+        
+        {/* Status Bar simulation (only visible in device mockup mode) */}
+        <div className="hidden md:flex justify-between items-center px-6 py-2 bg-white text-[10px] font-bold text-text-secondary select-none flex-shrink-0">
+          <span>1:41</span>
+          <div className="w-32 h-4.5 bg-black rounded-full absolute left-1/2 -translate-x-1/2 top-1.5" />
+          <div className="flex items-center gap-1">
+            <span>5G</span>
+            <div className="w-4 h-2.5 bg-text-secondary/70 rounded-xs" />
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+
+        {/* Core Content Area */}
+        <div className="flex-1 relative overflow-hidden">
+          <AnimatePresence mode="wait">
+            {activeTab === "home" ? (
+              <motion.div
+                key="home-tab"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="w-full h-full relative"
+              >
+                {/* Search overlay at top */}
+                <SearchBar
+                  onSelectPoint={handleSelectPointFromMapOrSearch}
+                  onOpenScanner={() => setIsScannerOpen(true)}
+                  selectedPointId={selectedPoint?.id}
+                />
+
+                {/* Main Interactive Map (Refactored to Leaflet) */}
+                <CustomMap
+                  points={touristPoints}
+                  selectedPoint={selectedPoint}
+                  onSelectPoint={handleSelectPointFromMapOrSearch}
+                />
+
+                {/* Bottom sheet for quick point preview */}
+                <BottomSheet
+                  point={selectedPoint}
+                  onClose={() => setSelectedPoint(null)}
+                  onViewDetails={handleViewDetails}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="profile-tab"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="w-full h-full overflow-y-auto no-scrollbar"
+              >
+                <ProfileView
+                  searchedPoints={searchedPoints}
+                  onSelectPoint={(point) => {
+                    // Navigate to details directly when clicking history card
+                    setActiveDetailsPoint(point);
+                  }}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Global Bottom Navigation bar */}
+        <BottomNav activeTab={activeTab} setActiveTab={handleSetActiveTab} />
+
+        {/* Fullscreen detail view of a tourist point */}
+        <AnimatePresence>
+          {activeDetailsPoint && (
+            <PointDetails
+              point={activeDetailsPoint}
+              onBack={() => setActiveDetailsPoint(null)}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+          )}
+        </AnimatePresence>
+
+        {/* QR Code Scanner camera simulation overlay */}
+        <AnimatePresence>
+          {isScannerOpen && (
+            <QRCodeScanner
+              onClose={() => setIsScannerOpen(false)}
+              onScanSuccess={handleScanSuccess}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </main>
   );
 }
