@@ -2,16 +2,17 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Search, QrCode, X } from "lucide-react";
-import { TouristPoint, touristPoints } from "../data/mockData";
+import { TouristPoint } from "../data/mockData";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface SearchBarProps {
+  points: TouristPoint[];
   onSelectPoint: (point: TouristPoint) => void;
   onOpenScanner: () => void;
   selectedPointId?: string;
 }
 
-export default function SearchBar({ onSelectPoint, onOpenScanner, selectedPointId }: SearchBarProps) {
+export default function SearchBar({ points, onSelectPoint, onOpenScanner, selectedPointId }: SearchBarProps) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<TouristPoint[]>([]);
   const [isFocused, setIsFocused] = useState(false);
@@ -23,12 +24,12 @@ export default function SearchBar({ onSelectPoint, onOpenScanner, selectedPointI
       return;
     }
 
-    const filtered = touristPoints.filter((point) =>
+    const filtered = points.filter((point) =>
       point.name.toLowerCase().includes(query.toLowerCase()) ||
       point.category.toLowerCase().includes(query.toLowerCase())
     );
     setSuggestions(filtered);
-  }, [query]);
+  }, [query, points]);
 
   // Reset search when selectedPointId changes from outside
   useEffect(() => {

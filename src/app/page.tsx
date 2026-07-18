@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { touristPoints, TouristPoint } from "../data/mockData";
+import React, { useEffect, useState, useCallback } from "react";
+import { touristPoints as fallbackPoints, TouristPoint } from "../data/mockData";
 import BottomNav from "../components/BottomNav";
 import SearchBar from "../components/SearchBar";
 import dynamic from "next/dynamic";
@@ -10,23 +10,57 @@ import BottomSheet from "../components/BottomSheet";
 import PointDetails from "../components/PointDetails";
 import ProfileView from "../components/ProfileView";
 import QRCodeScanner from "../components/QRCodeScanner";
+import LoginPage from "../components/LoginPage";
 import { AnimatePresence, motion } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
+import { fetchTouristPoints, fetchSearchHistory, recordSearch } from "@/services/pointsService";
+
+function LoadingScreen() {
+  return (
+    <div className="w-full h-screen flex items-center justify-center bg-bg-app">
+      <div className="w-10 h-10 border-4 border-brand border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
 
 export default function App() {
+  const { user, loading: authLoading } = useAuth();
+
+  const [points, setPoints] = useState<TouristPoint[]>(fallbackPoints);
   const [activeTab, setActiveTab] = useState<"home" | "profile">("home");
   const [selectedPoint, setSelectedPoint] = useState<TouristPoint | null>(null);
   const [activeDetailsPoint, setActiveDetailsPoint] = useState<TouristPoint | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  
-  // History of searched/visited points (start with 2 points for demonstration purposes)
-  const [searchedPoints, setSearchedPoints] = useState<TouristPoint[]>([
-    touristPoints[1], // Praça da Estação
-    touristPoints[4], // Deck do Rio Doce
-  ]);
+  const [searchedPoints, setSearchedPoints] = useState<TouristPoint[]>([]);
+
+  // Load points + user history once authenticated
+  useEffect(() => {
+    if (!user) return;
+
+    fetchTouristPoints()
+      .then(setPoints)
+      .catch(() => setPoints(fallbackPoints)); // keep mock as fallback if fetch fails
+
+    fetchSearchHistory(user.id)
+      .then(setSearchedPoints)
+      .catch(() => setSearchedPoints([]));
+  }, [user]);
+
+  const persistSearch = useCallback(
+    (pointId: string) => {
+      if (!user) return;
+      recordSearch(user.id, pointId).catch(() => {
+        // non-critical — history sync fails silently, UI already updated optimistically
+      });
+    },
+    [user]
+  );
+
+  if (authLoading) return <LoadingScreen />;
+  if (!user) return <LoginPage />;
 
   const handleSetActiveTab = (tab: "home" | "profile") => {
     setActiveTab(tab);
-    // Reset overlays when switching pages to prevent overlapping
     setActiveDetailsPoint(null);
     setIsScannerOpen(false);
     setSelectedPoint(null);
@@ -36,36 +70,27 @@ export default function App() {
     setSelectedPoint(point);
   };
 
+  const addToHistory = (point: TouristPoint) => {
+    setSearchedPoints((prev) => (prev.some((p) => p.id === point.id) ? prev : [point, ...prev]));
+    persistSearch(point.id);
+  };
+
   const handleViewDetails = (point: TouristPoint) => {
-    // Add to history if not already present
-    if (!searchedPoints.some((p) => p.id === point.id)) {
-      setSearchedPoints((prev) => [point, ...prev]);
-    }
+    addToHistory(point);
     setActiveDetailsPoint(point);
-    setSelectedPoint(null); // Close bottom preview sheet
+    setSelectedPoint(null);
   };
 
   const handleScanSuccess = (point: TouristPoint) => {
     setIsScannerOpen(false);
-    
-    // Add to history if not already present
-    if (!searchedPoints.some((p) => p.id === point.id)) {
-      setSearchedPoints((prev) => [point, ...prev]);
-    }
-    
-    // Open details directly for scanned point
+    addToHistory(point);
     setActiveDetailsPoint(point);
   };
 
   return (
     <main className="w-full min-h-screen bg-zinc-100 flex items-center justify-center font-sans antialiased">
-      {/* 
-        Mock Device Shell for Desktop, Fullscreen on Mobile.
-        Enforces a clean mobile-first view-frame.
-      */}
       <div className="relative w-full max-w-md h-screen md:max-h-[850px] md:rounded-[40px] md:shadow-2xl md:border-[8px] md:border-zinc-800 bg-bg-app overflow-hidden flex flex-col">
-        
-        {/* Status Bar simulation (only visible in device mockup mode) */}
+
         <div className="hidden md:flex justify-between items-center px-6 py-2 bg-white text-[10px] font-bold text-text-secondary select-none flex-shrink-0">
           <span>1:41</span>
           <div className="w-32 h-4.5 bg-black rounded-full absolute left-1/2 -translate-x-1/2 top-1.5" />
@@ -75,7 +100,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Core Content Area */}
         <div className="flex-1 relative overflow-hidden">
           <AnimatePresence mode="wait">
             {activeTab === "home" ? (
@@ -86,21 +110,19 @@ export default function App() {
                 exit={{ opacity: 0 }}
                 className="w-full h-full relative"
               >
-                {/* Search overlay at top */}
                 <SearchBar
+                  points={points}
                   onSelectPoint={handleSelectPointFromMapOrSearch}
                   onOpenScanner={() => setIsScannerOpen(true)}
                   selectedPointId={selectedPoint?.id}
                 />
 
-                {/* Main Interactive Map (Refactored to Leaflet) */}
                 <CustomMap
-                  points={touristPoints}
+                  points={points}
                   selectedPoint={selectedPoint}
                   onSelectPoint={handleSelectPointFromMapOrSearch}
                 />
 
-                {/* Bottom sheet for quick point preview */}
                 <BottomSheet
                   point={selectedPoint}
                   onClose={() => setSelectedPoint(null)}
@@ -117,33 +139,25 @@ export default function App() {
               >
                 <ProfileView
                   searchedPoints={searchedPoints}
-                  onSelectPoint={(point) => {
-                    // Navigate to details directly when clicking history card
-                    setActiveDetailsPoint(point);
-                  }}
+                  onSelectPoint={(point) => setActiveDetailsPoint(point)}
                 />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Global Bottom Navigation bar */}
         <BottomNav activeTab={activeTab} setActiveTab={handleSetActiveTab} />
 
-        {/* Fullscreen detail view of a tourist point */}
         <AnimatePresence>
           {activeDetailsPoint && (
-            <PointDetails
-              point={activeDetailsPoint}
-              onBack={() => setActiveDetailsPoint(null)}
-            />
+            <PointDetails point={activeDetailsPoint} onBack={() => setActiveDetailsPoint(null)} />
           )}
         </AnimatePresence>
 
-        {/* QR Code Scanner camera simulation overlay */}
         <AnimatePresence>
           {isScannerOpen && (
             <QRCodeScanner
+              points={points}
               onClose={() => setIsScannerOpen(false)}
               onScanSuccess={handleScanSuccess}
             />

@@ -2,15 +2,16 @@
 
 import React from "react";
 import { Camera, X, QrCode, MapPin } from "lucide-react";
-import { TouristPoint, touristPoints } from "../data/mockData";
+import { TouristPoint } from "../data/mockData";
 import { motion } from "framer-motion";
 
 interface QRCodeScannerProps {
+  points: TouristPoint[];
   onClose: () => void;
   onScanSuccess: (point: TouristPoint) => void;
 }
 
-export default function QRCodeScanner({ onClose, onScanSuccess }: QRCodeScannerProps) {
+export default function QRCodeScanner({ points, onClose, onScanSuccess }: QRCodeScannerProps) {
   const handleSimulateScan = (point: TouristPoint) => {
     onScanSuccess(point);
   };
@@ -76,7 +77,7 @@ export default function QRCodeScanner({ onClose, onScanSuccess }: QRCodeScannerP
           Simular Leitura (Protótipo)
         </span>
         <div className="grid grid-cols-2 gap-3 max-h-48 overflow-y-auto no-scrollbar">
-          {touristPoints.map((point) => (
+          {points.map((point) => (
             <button
               key={point.id}
               onClick={() => handleSimulateScan(point)}
