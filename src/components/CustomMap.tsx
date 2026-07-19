@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { TouristPoint } from "@/types/point";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -25,18 +25,26 @@ export default function CustomMap({
   const markersRef = useRef<{ [key: string]: L.Marker }>({});
   const userLocationMarkerRef = useRef<L.Marker | null>(null);
 
-  // Initialize Leaflet Map
+  // Active zoom state to dynamically adjust marker sizes
+  const [zoom, setZoom] = useState(13);
+
+  // Initialize Leaflet Map with restrictions
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return;
 
     // Center of Governador Valadares
     const gvCenter: L.LatLngExpression = [-18.8582, -41.9485];
     
-    // Initialize map
+    // Bounds to restrict panning/zooming out of G. Valadares (prevents gray border/empty areas)
+    const gvBounds = L.latLngBounds([-18.96, -42.06], [-18.78, -41.86]);
+
+    // Initialize map with strict constraints
     const map = L.map(mapContainerRef.current, {
       center: gvCenter,
       zoom: 13,
-      zoomControl: false, // Custom position or disabled for mobile-first layout
+      minZoom: 12, // Prevents zooming out to world map view
+      maxZoom: 18,
+      zoomControl: false,
       attributionControl: false,
     });
 
@@ -47,6 +55,11 @@ export default function CustomMap({
 
     mapRef.current = map;
 
+    // Track active zoom changes
+    map.on("zoomend", () => {
+      setZoom(map.getZoom());
+    });
+
     // Clean up on unmount
     return () => {
       if (mapRef.current) {
@@ -56,7 +69,7 @@ export default function CustomMap({
     };
   }, []);
 
-  // Update markers and handle selections
+  // Update markers and handle selections/zoomed sizes
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -65,33 +78,36 @@ export default function CustomMap({
     Object.values(markersRef.current).forEach((marker) => marker.remove());
     markersRef.current = {};
 
+    // Dynamic marker size based on active zoom level (slightly larger for accessibility)
+    const markerSize = Math.max(34, Math.min(68, 42 + (zoom - 13) * 5));
+
     // Add new markers
     points.forEach((point) => {
       const isSelected = selectedPoint?.id === point.id;
 
-      // Custom DOM Icon matching the orange brand design system exactly
+      // Custom DOM Icon matching the orange brand design system exactly with dynamic size
       const customIcon = L.divIcon({
         className: "custom-leaflet-marker",
         html: `
           <div class="relative flex items-center justify-center">
-            ${isSelected ? '<span class="absolute w-12 h-12 rounded-full bg-brand/20 animate-ping"></span>' : ""}
-            <div class="w-9 h-9 rounded-full bg-brand border-2 border-white flex items-center justify-center shadow-lg transition-transform duration-200 active:scale-95 ${
-              isSelected ? "scale-110 ring-4 ring-brand/20" : ""
-            }">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            ${isSelected ? `<span class="absolute rounded-full bg-brand/20 animate-ping" style="width: ${markerSize * 1.3}px; height: ${markerSize * 1.3}px;"></span>` : ""}
+            <div class="rounded-full bg-brand border-2 border-white flex items-center justify-center shadow-lg transition-transform duration-200 active:scale-95 ${
+              isSelected ? "ring-4 ring-brand/20 scale-110" : ""
+            }" style="width: ${markerSize}px; height: ${markerSize}px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="${markerSize * 0.45}" height="${markerSize * 0.45}" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0Z"/>
                 <circle cx="12" cy="10" r="3"/>
               </svg>
             </div>
-            <div class="absolute top-10 bg-white border border-gray-100/80 px-2 py-0.5 rounded-md text-[9px] font-bold shadow-sm whitespace-nowrap pointer-events-none ${
-              isSelected ? "text-brand scale-100" : "text-text-main opacity-70 scale-95"
-            }">
+            <div class="absolute bg-white border border-gray-100/80 px-2 py-0.5 rounded-md text-[9px] font-black shadow-sm whitespace-nowrap pointer-events-none transition-transform ${
+              isSelected ? "text-brand scale-105 font-black border-brand/20" : "text-text-main opacity-85 scale-95"
+            }" style="top: ${markerSize + 3}px;">
               ${point.name}
             </div>
           </div>
         `,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
+        iconSize: [markerSize, markerSize],
+        iconAnchor: [markerSize / 2, markerSize / 2],
       });
 
       const marker = L.marker([point.coords.lat, point.coords.lng], { icon: customIcon })
@@ -102,7 +118,7 @@ export default function CustomMap({
 
       markersRef.current[point.id] = marker;
     });
-  }, [points, selectedPoint, onSelectPoint]);
+  }, [points, selectedPoint, onSelectPoint, zoom]);
 
   // Handle User Geolocation Blue Pulse Dot
   useEffect(() => {

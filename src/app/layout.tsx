@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import VLibrasProvider from "@/components/VLibrasProvider";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta-sans",
@@ -41,7 +42,10 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
       <body className="min-h-full flex flex-col bg-bg-app text-text-main">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          <VLibrasProvider />
+        </AuthProvider>
       </body>
     </html>
   );

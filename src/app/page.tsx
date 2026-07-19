@@ -12,9 +12,11 @@ import ProfileView from "../components/ProfileView";
 import QRCodeScanner from "../components/QRCodeScanner";
 import LoginPage from "../components/LoginPage";
 import ExploreBottomSheet from "../components/ExploreBottomSheet";
+import AccessibilityMenu from "../components/AccessibilityMenu";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { fetchTouristPoints, fetchSearchHistory, recordSearch } from "@/services/pointsService";
+import type { AddressResult } from "@/services/geocodingService";
 import { Landmark, Trees, Utensils, Sparkles, Compass, Navigation } from "lucide-react";
 
 function LoadingScreen() {
@@ -47,7 +49,7 @@ function getCategoryIcon(cat: string) {
 }
 
 export default function App() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, preferences, updatePreferences } = useAuth();
 
   const [points, setPoints] = useState<TouristPoint[]>([]);
   const [activeTab, setActiveTab] = useState<"home" | "profile">("home");
@@ -61,6 +63,49 @@ export default function App() {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [flyToCoords, setFlyToCoords] = useState<[number, number] | null>(null);
   const [exploreSheetState, setExploreSheetState] = useState<"collapsed" | "expanded">("collapsed");
+
+  // Accessibility States — local state drives render instantly (snappy
+  // toggle feel); synced from `preferences` once loaded, persisted back
+  // to Supabase on every change via updatePreferences.
+  const [isHighContrast, setIsHighContrast] = useState(false);
+  const [fontScale, setFontScale] = useState<"normal" | "lg" | "xl">("normal");
+  const [vLibrasActive, setVLibrasActive] = useState(false);
+  const [voiceActive, setVoiceActive] = useState(false);
+
+  // Seed local toggle state from the user's saved preferences. By the time
+  // authLoading flips false, AuthContext has already awaited this fetch
+  // (see AuthContext.tsx), so this effect fires while <LoadingScreen /> is
+  // still on screen — no flash of unstyled/wrong-theme content once the
+  // real UI paints.
+  useEffect(() => {
+    if (!preferences) return;
+    setIsHighContrast(preferences.high_contrast_enabled);
+    // font_scale may be missing on rows created before that column existed
+    // (pre-migration) — fall back to "normal" instead of storing undefined.
+    setFontScale(preferences.font_scale ?? "normal");
+    setVLibrasActive(preferences.libras_enabled);
+    setVoiceActive(preferences.audio_enabled);
+  }, [preferences]);
+
+  const handleSetHighContrast = (value: boolean) => {
+    setIsHighContrast(value);
+    updatePreferences({ high_contrast_enabled: value }).catch(() => {});
+  };
+
+  const handleSetFontScale = (scale: "normal" | "lg" | "xl") => {
+    setFontScale(scale);
+    updatePreferences({ font_scale: scale }).catch(() => {});
+  };
+
+  const handleSetVLibrasActive = (value: boolean) => {
+    setVLibrasActive(value);
+    updatePreferences({ libras_enabled: value }).catch(() => {});
+  };
+
+  const handleSetVoiceActive = (value: boolean) => {
+    setVoiceActive(value);
+    updatePreferences({ audio_enabled: value }).catch(() => {});
+  };
 
   // Load points from Supabase (public.pontos) + user history once authenticated.
   // No mock fallback — table is single source of truth, new cadastro rows show
@@ -140,6 +185,13 @@ export default function App() {
     setFlyToCoords([point.coords.lat, point.coords.lng]);
   };
 
+  // Address result (Photon) — just center/zoom the map, no ponto detail
+  // screen exists for a plain address, so skip selectedPoint/BottomSheet.
+  const handleSelectAddress = (address: AddressResult) => {
+    setSelectedPoint(null);
+    setFlyToCoords([address.lat, address.lng]);
+  };
+
   const addToHistory = (point: TouristPoint) => {
     setSearchedPoints((prev) => (prev.some((p) => p.id === point.id) ? prev : [point, ...prev]));
     persistSearch(point.id);
@@ -164,7 +216,11 @@ export default function App() {
 
   return (
     <main className="w-full min-h-dvh bg-zinc-100 flex items-center justify-center font-sans antialiased">
-      <div className="relative w-full max-w-md h-dvh md:max-h-[850px] md:rounded-[40px] md:shadow-2xl md:border-[8px] md:border-zinc-800 bg-bg-app overflow-hidden flex flex-col">
+      <div className={`relative w-full max-w-md h-dvh md:max-h-[850px] md:rounded-[40px] md:shadow-2xl md:border-[8px] md:border-zinc-800 bg-bg-app overflow-hidden flex flex-col transition-colors duration-250 ${
+        isHighContrast ? "theme-high-contrast" : ""
+      } ${
+        fontScale === "lg" ? "font-scale-lg" : fontScale === "xl" ? "font-scale-xl" : ""
+      }`}>
 
         {/* Status Bar simulation */}
         <div className="hidden md:flex justify-between items-center px-6 py-2 bg-white text-[10px] font-bold text-text-secondary select-none flex-shrink-0">
@@ -190,6 +246,7 @@ export default function App() {
                 <SearchBar
                   points={filteredPoints}
                   onSelectPoint={handleSelectPointFromMapOrSearch}
+                  onSelectAddress={handleSelectAddress}
                   onOpenScanner={() => setIsScannerOpen(true)}
                   selectedPointId={selectedPoint?.id}
                 />
@@ -282,7 +339,11 @@ export default function App() {
 
         <AnimatePresence>
           {activeDetailsPoint && (
-            <PointDetails point={activeDetailsPoint} onBack={() => setActiveDetailsPoint(null)} />
+            <PointDetails
+              point={activeDetailsPoint}
+              onBack={() => setActiveDetailsPoint(null)}
+              voiceActive={voiceActive}
+            />
           )}
         </AnimatePresence>
 
@@ -294,6 +355,18 @@ export default function App() {
             />
           )}
         </AnimatePresence>
+
+        {/* Global Floating Accessibility Menu Button and Settings Panel */}
+        <AccessibilityMenu
+          isHighContrast={isHighContrast}
+          setIsHighContrast={handleSetHighContrast}
+          fontScale={fontScale}
+          setFontScale={handleSetFontScale}
+          vLibrasActive={vLibrasActive}
+          setVLibrasActive={handleSetVLibrasActive}
+          voiceActive={voiceActive}
+          setVoiceActive={handleSetVoiceActive}
+        />
       </div>
     </main>
   );

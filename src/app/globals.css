@@ -22,7 +22,7 @@
   --foreground: #222E2D;
 }
 
-html, body {
+html {
   overflow: hidden;
   height: 100dvh;
   width: 100vw;
@@ -30,6 +30,9 @@ html, body {
 }
 
 body {
+  height: 100dvh;
+  width: 100vw;
+  overscroll-behavior: none;
   background-color: #FAF8F5;
   color: #222E2D;
   font-family: var(--font-plus-jakarta-sans), ui-sans-serif, system-ui, sans-serif;
@@ -78,4 +81,142 @@ input, select, textarea {
   animation: pulse-blue 2s infinite;
   border-radius: 9999px;
 }
+
+/* Font Sizing scale overrides for PWA container using Tailwind CSS variables */
+.font-scale-lg {
+  --text-xs: 0.84rem;     /* 0.75rem * 1.12 */
+  --text-sm: 0.98rem;     /* 0.875rem * 1.12 */
+  --text-base: 1.12rem;   /* 1rem * 1.12 */
+  --text-lg: 1.26rem;     /* 1.125rem * 1.12 */
+  --text-xl: 1.4rem;      /* 1.25rem * 1.12 */
+  --text-2xl: 1.68rem;    /* 1.5rem * 1.12 */
+  --text-3xl: 2.1rem;     /* 1.875rem * 1.12 */
+  --text-4xl: 2.52rem;    /* 2.25rem * 1.12 */
+}
+
+.font-scale-xl {
+  --text-xs: 0.94rem;     /* 0.75rem * 1.25 */
+  --text-sm: 1.09rem;     /* 0.875rem * 1.25 */
+  --text-base: 1.25rem;   /* 1rem * 1.25 */
+  --text-lg: 1.4rem;      /* 1.125rem * 1.25 */
+  --text-xl: 1.56rem;     /* 1.25rem * 1.25 */
+  --text-2xl: 1.87rem;    /* 1.5rem * 1.25 */
+  --text-3xl: 2.34rem;    /* 1.875rem * 1.25 */
+  --text-4xl: 2.81rem;    /* 2.25rem * 1.25 */
+}
+
+/* High Contrast Mode CSS Overrides */
+.theme-high-contrast {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+}
+
+.theme-high-contrast div:not(.tap-highlight-none),
+.theme-high-contrast main,
+.theme-high-contrast section,
+.theme-high-contrast header,
+.theme-high-contrast nav,
+.theme-high-contrast form {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+}
+
+.theme-high-contrast p,
+.theme-high-contrast span,
+.theme-high-contrast h1,
+.theme-high-contrast h2,
+.theme-high-contrast h3,
+.theme-high-contrast h4,
+.theme-high-contrast h5,
+.theme-high-contrast h6,
+.theme-high-contrast label,
+.theme-high-contrast svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+.theme-high-contrast button,
+.theme-high-contrast a,
+.theme-high-contrast input,
+.theme-high-contrast select,
+.theme-high-contrast textarea {
+  background-color: #000000 !important;
+  color: #ffff00 !important;
+  border: 2px solid #ffffff !important;
+}
+
+/* Leaflet Tile Inversion for dark high contrast map */
+.theme-high-contrast .leaflet-tile {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(120%) !important;
+}
+
+/* Specific active element classes override for high contrast */
+.theme-high-contrast .bg-brand,
+.theme-high-contrast .bg-brand-light,
+.theme-high-contrast .bg-brand.text-brand,
+.theme-high-contrast .bg-brand-light.text-brand,
+.theme-high-contrast .bg-brand-light.text-brand-dark {
+  background-color: #ffff00 !important;
+  color: #000000 !important;
+}
+
+/* Fix yellow-on-yellow or invisible text inside brand elements */
+.theme-high-contrast .bg-brand *,
+.theme-high-contrast .bg-brand-light *,
+.theme-high-contrast .bg-brand *.text-brand,
+.theme-high-contrast .bg-brand-light *.text-brand {
+  background-color: #ffff00 !important;
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
+
+.theme-high-contrast .text-brand {
+  color: #ffff00 !important;
+}
+
+/* Prevent black background overrides on images and transparent overlays */
+.theme-high-contrast img {
+  opacity: 1 !important;
+}
+
+.theme-high-contrast [class*="bg-gradient-"] {
+  background-color: transparent !important;
+}
+
+/* ================================================================
+   VLibras Widget — Minimal overrides.
+   The @djpfs/react-vlibras package handles all DOM, CSS, and JS.
+   We only ensure z-index and protect against high-contrast overrides.
+   ================================================================ */
+
+div[vw] {
+  z-index: 9999 !important;
+}
+
+/* Prevent high-contrast theme from breaking VLibras widget styles */
+.theme-high-contrast div[vw],
+.theme-high-contrast div[vw] * {
+  background-color: unset !important;
+  color: unset !important;
+  border: unset !important;
+  stroke: unset !important;
+  filter: none !important;
+}
+
+
+/* Limit scale growth inside accessibility menu panel to preserve layout controls */
+.font-scale-lg .accessibility-menu-panel span,
+.font-scale-lg .accessibility-menu-panel p {
+  font-size: 104% !important;
+}
+
+.font-scale-xl .accessibility-menu-panel span,
+.font-scale-xl .accessibility-menu-panel p {
+  font-size: 110% !important;
+}
+
+
+
 

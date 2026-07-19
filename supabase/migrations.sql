@@ -196,6 +196,31 @@ alter table public.accessibility_preferences enable row level security;
 create policy "accessibility_prefs_all_own" on public.accessibility_preferences
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- Font scale for the floating accessibility menu (A-/A+ control). Added via
+-- ALTER instead of inline column above so this block stays idempotent/safe
+-- to re-run even against a table created before this column existed.
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'accessibility_preferences' and column_name = 'font_scale'
+  ) then
+    alter table public.accessibility_preferences
+      add column font_scale text not null default 'normal';
+    alter table public.accessibility_preferences
+      add constraint accessibility_preferences_font_scale_check
+      check (font_scale in ('normal', 'lg', 'xl'));
+  end if;
+end $$;
+
+-- Column meaning reused across two UIs (ProfileView toggles + the floating
+-- AccessibilityMenu): high_contrast_enabled = "Alto Contraste" in both;
+-- libras_enabled = "Priorizar Guia em Libras" (ProfileView) AND the VLibras
+-- widget toggle (AccessibilityMenu) — same underlying preference, kept in
+-- sync instead of adding a duplicate column; audio_enabled = "Priorizar
+-- Audiodescrição" (ProfileView) AND "Leitura em voz alta" (AccessibilityMenu)
+-- — both are audio-output preferences, same column, same reasoning.
+
 -- ============================================================
 -- Rate limiting: Supabase Auth has built-in rate limits per IP/email
 -- for signup, login, password-reset, OTP (fixed server-side, not

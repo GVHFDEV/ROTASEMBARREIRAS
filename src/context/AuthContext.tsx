@@ -15,7 +15,9 @@ interface AuthContextType {
   signup: (email: string, password: string, fullName: string) => Promise<{ needsEmailConfirmation: boolean }>;
   logout: () => Promise<void>;
   updatePreferences: (
-    prefs: Partial<Pick<AccessibilityPreferencesRow, "audio_enabled" | "libras_enabled" | "high_contrast_enabled">>
+    prefs: Partial<
+      Pick<AccessibilityPreferencesRow, "audio_enabled" | "libras_enabled" | "high_contrast_enabled" | "font_scale">
+    >
   ) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -44,18 +46,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadUserData = useCallback(async (currentUser: User) => {
     const [{ data: profileData }, { data: prefsData }] = await Promise.all([
-      supabase.from("profiles").select("*").eq("id", currentUser.id).single(),
-      supabase.from("accessibility_preferences").select("*").eq("user_id", currentUser.id).single(),
+      supabase.from("profiles").select("*").eq("id", currentUser.id).maybeSingle(),
+      supabase.from("accessibility_preferences").select("*").eq("user_id", currentUser.id).maybeSingle(),
     ]);
     if (profileData) setProfile(profileData as Profile);
-    if (prefsData) setPreferences(prefsData as AccessibilityPreferencesRow);
+
+    if (prefsData) {
+      setPreferences(prefsData as AccessibilityPreferencesRow);
+    } else {
+      // Row missing (account predates a table reset, or signup trigger
+      // didn't run) — create defaults now instead of leaving preferences
+      // null forever, which would stop the accessibility menu from ever
+      // reflecting/persisting real state.
+      const { data: created } = await supabase
+        .from("accessibility_preferences")
+        .upsert({ user_id: currentUser.id }, { onConflict: "user_id" })
+        .select()
+        .maybeSingle();
+      if (created) setPreferences(created as AccessibilityPreferencesRow);
+    }
   }, [supabase]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
       setSession(s);
       setUser(s?.user ?? null);
-      if (s?.user) loadUserData(s.user);
+      // Await prefs/profile fetch before flipping loading=false — otherwise
+      // page.tsx renders one frame with defaults (no contrast/font applied)
+      // then "flashes" to the saved theme once loadUserData resolves.
+      if (s?.user) await loadUserData(s.user);
       setLoading(false);
     });
 
@@ -95,13 +114,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updatePreferences = async (
-    prefs: Partial<Pick<AccessibilityPreferencesRow, "audio_enabled" | "libras_enabled" | "high_contrast_enabled">>
+    prefs: Partial<
+      Pick<AccessibilityPreferencesRow, "audio_enabled" | "libras_enabled" | "high_contrast_enabled" | "font_scale">
+    >
   ) => {
     if (!user) return;
+    // upsert instead of update — self-heals if the row is missing (e.g.
+    // account created before a table reset/migration, trigger never
+    // re-ran for existing auth.users). update+.single() 406s with 0 rows
+    // matched; upsert creates the row on first save instead of failing.
     const { data, error } = await supabase
       .from("accessibility_preferences")
-      .update({ ...prefs, updated_at: new Date().toISOString() })
-      .eq("user_id", user.id)
+      .upsert({ user_id: user.id, ...prefs, updated_at: new Date().toISOString() }, { onConflict: "user_id" })
       .select()
       .single();
     if (error) throw error;

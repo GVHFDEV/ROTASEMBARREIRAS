@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VLibras Test Page</title>
+  <style>
+    body { font-family: sans-serif; padding: 40px; }
+    h1 { color: #333; }
+    #status { margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 8px; }
+    .ok { color: green; font-weight: bold; }
+    .fail { color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Teste de Integração VLibras</h1>
+  <p>Esta página testa se o widget VLibras carrega corretamente.</p>
+  <p>Se funcionou, a bolinha azul do VLibras deve aparecer no canto inferior direito.</p>
+
+  <div id="status">
+    <p>Status: <span id="script-status">Carregando script...</span></p>
+    <p>Container div[vw]: <span id="container-status">Verificando...</span></p>
+    <p>window.VLibras: <span id="vlibras-status">Verificando...</span></p>
+    <p>Widget init: <span id="widget-status">Aguardando...</span></p>
+  </div>
+
+  <!-- VLibras Official Structure -->
+  <div vw class="enabled">
+    <div vw-access-button class="active"></div>
+    <div vw-plugin-wrapper>
+      <div class="vw-plugin-top-wrapper"></div>
+    </div>
+  </div>
+
+  <script src="https://vlibras.gov.br/app/vlibras-plugin.js"></script>
+  <script>
+    // Check container
+    var container = document.querySelector('div[vw]');
+    document.getElementById('container-status').textContent = container ? 'OK ✓' : 'NÃO ENCONTRADO ✗';
+    document.getElementById('container-status').className = container ? 'ok' : 'fail';
+
+    // Check VLibras global
+    setTimeout(function() {
+      if (window.VLibras) {
+        document.getElementById('vlibras-status').textContent = 'Disponível ✓';
+        document.getElementById('vlibras-status').className = 'ok';
+        document.getElementById('script-status').textContent = 'Carregado ✓';
+        document.getElementById('script-status').className = 'ok';
+
+        try {
+          new window.VLibras.Widget('https://vlibras.gov.br/app');
+          document.getElementById('widget-status').textContent = 'Inicializado ✓';
+          document.getElementById('widget-status').className = 'ok';
+        } catch(e) {
+          document.getElementById('widget-status').textContent = 'ERRO: ' + e.message;
+          document.getElementById('widget-status').className = 'fail';
+        }
+      } else {
+        document.getElementById('vlibras-status').textContent = 'NÃO DISPONÍVEL ✗';
+        document.getElementById('vlibras-status').className = 'fail';
+        document.getElementById('script-status').textContent = 'Falha ao carregar ✗';
+        document.getElementById('script-status').className = 'fail';
+      }
+    }, 2000);
+  </script>
+</body>
+</html>

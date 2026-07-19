@@ -41,9 +41,10 @@ export interface UserFavoriteRow {
 
 export interface AccessibilityPreferencesRow {
   user_id: string;
-  audio_enabled: boolean;
-  libras_enabled: boolean;
+  audio_enabled: boolean; // reused for "Leitura em voz alta" toggle
+  libras_enabled: boolean; // reused for VLibras widget toggle
   high_contrast_enabled: boolean;
+  font_scale: "normal" | "lg" | "xl";
   updated_at: string;
 }
 

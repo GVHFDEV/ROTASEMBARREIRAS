@@ -16,22 +16,22 @@ export default function BottomSheet({ point, onClose, onViewDetails }: BottomShe
     <AnimatePresence>
       {point && (
         <>
-          {/* Overlay backdrop */}
+          {/* Overlay backdrop relative to parent container */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.3 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black z-30 pointer-events-auto"
+            className="absolute inset-0 bg-black z-30 pointer-events-auto"
           />
 
-          {/* Bottom Sheet Card */}
+          {/* Bottom Sheet Card positioned absolute above BottomNav */}
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 220 }}
-            className="fixed bottom-20 left-0 right-0 z-40 bg-white rounded-t-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] border-t border-gray-100 max-w-md mx-auto overflow-hidden pb-8"
+            className="absolute bottom-0 left-0 right-0 z-40 bg-white rounded-t-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] border-t border-gray-100 w-full overflow-hidden pb-8"
           >
             {/* Handle Bar */}
             <div className="flex justify-center py-4">
