@@ -21,6 +21,8 @@ export interface PontoRow {
   audiodescricao_url: string | null;
   video_libras_url: string | null;
   qr_code_value: string | null;
+  cidade: string;
+  xp_value: number;
   criado_em: string;
   atualizado_em: string;
 }
@@ -30,6 +32,40 @@ export interface UserSearchRow {
   user_id: string;
   point_id: string;
   searched_at: string;
+}
+
+export interface TrilhaRow {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  imagem_capa: string | null;
+  selo_titulo: string | null;
+  cidade: string;
+  criado_em: string;
+}
+
+export interface TrilhaPontoRow {
+  trilha_id: string;
+  ponto_id: string;
+  ordem: number;
+}
+
+/** Confirmed QR scan — source of truth for trail progress + XP. Distinct
+ * from user_searches (which also logs plain map/search clicks, not just
+ * physical QR confirmations). unique(user_id, ponto_id) means this row's
+ * mere existence = "first confirmed scan", so XP is never double-counted. */
+export interface UserScanRow {
+  id: string;
+  user_id: string;
+  ponto_id: string;
+  scanned_at: string;
+}
+
+export interface UserTrailBadgeRow {
+  id: string;
+  user_id: string;
+  trilha_id: string;
+  earned_at: string;
 }
 
 export interface UserFavoriteRow {
@@ -45,6 +81,7 @@ export interface AccessibilityPreferencesRow {
   libras_enabled: boolean; // reused for VLibras widget toggle
   high_contrast_enabled: boolean;
   font_scale: "normal" | "lg" | "xl";
+  reduce_motion_enabled?: boolean;
   updated_at: string;
 }
 

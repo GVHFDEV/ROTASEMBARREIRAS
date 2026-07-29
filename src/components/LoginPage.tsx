@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Mail, ArrowLeft, Eye, EyeOff, User as UserIcon, ShieldAlert } from "lucide-react";
+import { Mail, ArrowLeft, Eye, EyeOff, User as UserIcon, ShieldAlert, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 
@@ -9,7 +9,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 60_000;
 
-type AuthScreen = "onboarding" | "signin" | "signup" | "verify";
+type AuthScreen = "signin" | "signup" | "verify";
 
 function validatePassword(pwd: string, isSignup: boolean): string | null {
   if (!isSignup) return pwd.length >= 6 ? null : "Senha deve ter no mínimo 6 caracteres.";
@@ -19,10 +19,15 @@ function validatePassword(pwd: string, isSignup: boolean): string | null {
   return null;
 }
 
-export default function LoginPage() {
-  const { login, signup } = useAuth();
+interface LoginPageProps {
+  onClose?: () => void;
+  initialScreen?: AuthScreen;
+}
 
-  const [screen, setScreen] = useState<AuthScreen>("onboarding");
+export default function LoginPage({ onClose, initialScreen = "signin" }: LoginPageProps) {
+  const { login, signup, isAnonymous } = useAuth();
+
+  const [screen, setScreen] = useState<AuthScreen>(initialScreen);
   const [direction, setDirection] = useState(1); // 1 = forward (slide left), -1 = backward (slide right)
   
   // Form states
@@ -76,6 +81,7 @@ export default function LoginPage() {
       setLoading(true);
       await login(email, password);
       setAttempts(0);
+      if (onClose) onClose();
     } catch (err) {
       const nextAttempts = attempts + 1;
       setAttempts(nextAttempts);
@@ -125,8 +131,12 @@ export default function LoginPage() {
         // Redireciona para a Tela 4 de Confirmação de E-mail
         navigateTo("verify", true);
       } else {
-        setSuccess("Conta criada com sucesso! Faça login para continuar.");
-        navigateTo("signin", true);
+        setSuccess("Conta criada e vinculada com sucesso!");
+        if (onClose) {
+          onClose();
+        } else {
+          navigateTo("signin", true);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao cadastrar.");
@@ -172,97 +182,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="w-full h-dvh bg-bg-app flex items-center justify-center font-sans antialiased">
-      <div className="relative w-full max-w-md h-dvh md:max-h-[850px] md:rounded-[40px] md:shadow-2xl md:border-[8px] md:border-zinc-800 bg-bg-app overflow-hidden flex flex-col justify-between pb-8">
-        
-        {/* Status Bar simulation */}
-        <div className="hidden md:flex justify-between items-center px-6 py-2 bg-white text-[10px] font-bold text-text-secondary select-none flex-shrink-0">
-          <span>1:41</span>
-          <div className="w-32 h-4.5 bg-black rounded-full absolute left-1/2 -translate-x-1/2 top-1.5" />
-          <div className="flex items-center gap-1">
-            <span>5G</span>
-            <div className="w-4 h-2.5 bg-text-secondary/70 rounded-xs" />
-          </div>
-        </div>
-
-        {/* Core Content Area */}
-        <div className="flex-1 relative overflow-hidden flex flex-col justify-between">
-          <div className="flex-1 overflow-y-auto no-scrollbar relative w-full">
-            <AnimatePresence initial={false} custom={direction} mode="wait">
-
-              {/* SCREEN 1: ONBOARDING */}
-              {screen === "onboarding" && (
-                <motion.div
-                  key="onboarding"
-                  custom={direction}
-                  variants={slideVariants}
-                  initial="enter"
-                  animate="center"
-                  exit="exit"
-                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                  className="absolute inset-0 px-6 pt-8 pb-8 flex flex-col justify-between overflow-y-auto no-scrollbar"
-                >
-                  {/* Top Bold Logo */}
-                  <h1 className="text-center font-black text-2xl text-text-main mt-2 select-none">
-                    Rota sem Barreiras
-                  </h1>
-
-                  {/* Centered Illustration + Text */}
-                  <div className="flex flex-col items-center justify-center flex-1 my-6">
-                    {/* Illustration vector */}
-                    <div className="w-full max-w-[260px] h-48 flex items-center justify-center bg-brand-light/30 rounded-3xl mb-5 overflow-hidden">
-                      <svg viewBox="0 0 300 240" className="w-full h-full">
-                        <path d="M 0,200 C 50,180 120,210 180,190 C 240,170 280,195 300,190 L 300,240 L 0,240 Z" fill="#fff4e6" opacity="0.5" />
-                        <path d="M 120,240 C 120,200 180,180 170,140 C 160,100 200,80 190,40" fill="none" stroke="#ffe0cc" strokeWidth="12" strokeLinecap="round" />
-                        
-                        <g transform="translate(110, 80)">
-                          <circle cx="20" cy="20" r="10" fill="#cc6600" />
-                          <path d="M 20,30 C 5,30 5,75 20,75 C 35,75 35,30 20,30 Z" fill="#ff7f00" />
-                          <path d="M 10,40 L 0,60" stroke="#cc6600" strokeWidth="4" strokeLinecap="round" />
-                          <path d="M 30,40 L 45,55" stroke="#cc6600" strokeWidth="4" strokeLinecap="round" />
-                        </g>
-                        
-                        <g transform="translate(160, 95)">
-                          <circle cx="20" cy="15" r="9" fill="#889C79" />
-                          <path d="M 20,24 C 10,24 10,55 20,55 C 30,55 30,24 20,24 Z" fill="#222E2D" />
-                          <circle cx="20" cy="60" r="22" fill="none" stroke="#ff7f00" strokeWidth="5.5" />
-                          <circle cx="20" cy="60" r="6" fill="#cc6600" />
-                          <path d="M 12,35 L 2,42" stroke="#889C79" strokeWidth="4.5" strokeLinecap="round" />
-                        </g>
-
-                        <g transform="translate(145, 25)">
-                          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#ff7f00" />
-                          <circle cx="12" cy="9" r="2.5" fill="white" />
-                        </g>
-                      </svg>
-                    </div>
-
-                    <h2 className="text-xl font-black text-text-main text-center leading-tight">
-                      Mapeando a Inclusão
-                    </h2>
-                    <p className="text-sm font-semibold text-text-secondary text-center mt-3 leading-relaxed px-4">
-                      Explore pontos turísticos e culturais adaptados em Governador Valadares com autonomia e segurança.
-                    </p>
-                  </div>
-
-                  {/* Proceed Button + Legal Terms */}
-                  <div className="w-full max-w-sm mx-auto flex flex-col gap-3">
-                    <button
-                      onClick={() => navigateTo("signin", true)}
-                      className="w-full flex items-center justify-center gap-3 bg-brand hover:bg-brand-dark text-white font-extrabold text-sm py-4.5 px-6 rounded-full uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-brand/10 h-14"
-                    >
-                      Prosseguir para o Login
-                    </button>
-                    
-                    <p className="text-center text-[10px] font-bold text-text-secondary leading-normal px-2">
-                      Ao continuar, você concorda com nossos{" "}
-                      <span className="underline cursor-pointer hover:text-brand" onClick={() => alert("Simulação: Termos de Uso do app Rota sem Barreiras.")}>Termos de Uso</span>{" "}
-                      e{" "}
-                      <span className="underline cursor-pointer hover:text-brand" onClick={() => alert("Simulação: Política de Privacidade do app Rota sem Barreiras.")}>Política de Privacidade</span>.
-                    </p>
-                  </div>
-                </motion.div>
-              )}
+    <div className="w-full h-full min-h-full bg-bg-app flex flex-col justify-between font-sans antialiased relative overflow-hidden">
+      {/* Core Content Area */}
+      <div className="flex-1 relative overflow-hidden flex flex-col justify-between">
+        <div className="flex-1 overflow-y-auto no-scrollbar relative w-full">
+          <AnimatePresence initial={false} custom={direction} mode="wait">
 
               {/* SCREEN 2: SIGN IN - ALL TRANSLATED TO PORTUGUESE */}
               {screen === "signin" && (
@@ -274,28 +198,19 @@ export default function LoginPage() {
                   animate="center"
                   exit="exit"
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                  className="absolute inset-0 px-6 pt-10 pb-8 flex flex-col justify-between overflow-y-auto no-scrollbar"
+                  className="absolute inset-0 px-6 pt-[calc(env(safe-area-inset-top)+36px)] lg:pt-14 pb-28 lg:pb-8 flex flex-col justify-between overflow-y-auto no-scrollbar"
                 >
                   <div>
-                    {/* Back Button */}
-                    <button
-                      onClick={() => navigateTo("onboarding", false)}
-                      className="mb-4 p-2.5 bg-gray-50 hover:bg-gray-100 text-text-secondary rounded-full active:scale-90 transition-all self-start"
-                      title="Voltar"
-                    >
-                      <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
-                    </button>
-
                     {/* Header */}
-                    <h3 className="text-center font-black text-2xl text-text-main">
+                    <h3 className="text-center font-black text-xl lg:text-2xl text-text-main mt-4 lg:mt-6">
                       Bem-vindo de volta
                     </h3>
 
                     {/* Social Logins */}
-                    <div className="flex gap-2.5 mt-6 max-w-sm mx-auto">
+                    <div className="flex gap-2.5 mt-4 max-w-sm mx-auto">
                       <button
                         onClick={handleVerifyConfirm}
-                        className="flex-1 flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-900 text-white font-extrabold text-[10px] py-4 px-3 rounded-full uppercase tracking-wider active:scale-95 transition-all shadow-sm"
+                        className="flex-1 flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-900 text-white font-extrabold text-[10px] py-3 px-3 rounded-full uppercase tracking-wider active:scale-95 transition-all shadow-sm cursor-pointer"
                       >
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="white">
                           <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.17c.66-.81 1.11-1.93.99-3.06-1 .04-2.16.67-2.88 1.51-.62.71-1.16 1.85-1.01 2.96 1.1.09 2.21-.57 2.9-1.41z"/>
@@ -304,7 +219,7 @@ export default function LoginPage() {
                       </button>
                       <button
                         onClick={handleVerifyConfirm}
-                        className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-300 text-zinc-700 font-extrabold text-[10px] py-4 px-3 rounded-full uppercase tracking-wider active:scale-95 transition-all shadow-sm hover:bg-gray-50"
+                        className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-300 text-zinc-700 font-extrabold text-[10px] py-3 px-3 rounded-full uppercase tracking-wider active:scale-95 transition-all shadow-sm hover:bg-gray-50 cursor-pointer"
                       >
                         <svg viewBox="0 0 24 24" width="13" height="13">
                           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -317,16 +232,16 @@ export default function LoginPage() {
                     </div>
 
                     {/* Divider */}
-                    <div className="flex items-center my-5 max-w-sm mx-auto">
+                    <div className="flex items-center my-3.5 max-w-sm mx-auto">
                       <div className="flex-1 h-[1.5px] bg-gray-200" />
                       <span className="px-3.5 text-xs font-black text-text-secondary uppercase">ou</span>
                       <div className="flex-1 h-[1.5px] bg-gray-200" />
                     </div>
 
                     {/* Form - Translated */}
-                    <form onSubmit={handleSignIn} className="flex flex-col gap-4.5 max-w-sm mx-auto">
+                    <form onSubmit={handleSignIn} className="flex flex-col gap-3 max-w-sm mx-auto">
                       <div>
-                        <label htmlFor="signin-email" className="block text-[11px] font-black uppercase text-text-secondary tracking-wider mb-2 pl-1">
+                        <label htmlFor="signin-email" className="block text-[10px] font-black uppercase text-text-secondary tracking-wider mb-1 pl-1">
                           Endereço de E-mail
                         </label>
                         <input
@@ -336,12 +251,12 @@ export default function LoginPage() {
                           placeholder="exemplo@email.com"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          className="w-full bg-white border border-gray-200 rounded-full px-5 py-3 text-base text-text-main font-semibold focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 h-14"
+                          className="w-full bg-white border border-gray-200 rounded-full px-5 py-2.5 text-sm text-text-main font-semibold focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 h-12"
                         />
                       </div>
 
                       <div>
-                        <label htmlFor="signin-pwd" className="block text-[11px] font-black uppercase text-text-secondary tracking-wider mb-2 pl-1">
+                        <label htmlFor="signin-pwd" className="block text-[10px] font-black uppercase text-text-secondary tracking-wider mb-1 pl-1">
                           Senha
                         </label>
                         <div className="relative">
@@ -352,14 +267,14 @@ export default function LoginPage() {
                             placeholder="••••••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full bg-white border border-gray-200 rounded-full pl-5 pr-13 py-3 text-base text-text-main font-semibold focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 h-14"
+                            className="w-full bg-white border border-gray-200 rounded-full pl-5 pr-13 py-2.5 text-sm text-text-main font-semibold focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 h-12"
                           />
                           <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
                             className="absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary p-2 rounded-full hover:bg-gray-50 transition-colors"
                           >
-                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
                         </div>
                       </div>
@@ -374,7 +289,7 @@ export default function LoginPage() {
                       <button
                         type="submit"
                         disabled={loading || isLocked}
-                        className="w-full bg-brand hover:bg-brand-dark text-white font-extrabold text-sm py-4.5 px-6 rounded-full uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-brand/10 mt-3 h-14 flex items-center justify-center"
+                        className="w-full bg-brand hover:bg-brand-dark text-white font-extrabold text-xs py-3.5 px-6 rounded-full uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-brand/10 mt-2 h-12 flex items-center justify-center cursor-pointer"
                       >
                         {loading ? (
                           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -387,18 +302,18 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={() => alert("Simulação: E-mail de redefinição enviado.")}
-                      className="block mx-auto mt-5 text-[11px] font-black text-brand hover:text-brand-dark uppercase tracking-widest"
+                      className="block mx-auto mt-3 text-[11px] font-black text-brand hover:text-brand-dark uppercase tracking-widest cursor-pointer"
                     >
                       Esqueceu sua senha?
                     </button>
                   </div>
 
-                  {/* Create One - Translated */}
-                  <div className="mt-8 text-center max-w-sm mx-auto w-full flex flex-col gap-3 flex-shrink-0">
-                    <span className="text-[11px] font-black text-text-secondary uppercase tracking-wider">Não tem uma conta?</span>
+                  {/* Create One */}
+                  <div className="mt-4 text-center max-w-sm mx-auto w-full flex flex-col gap-2 flex-shrink-0">
+                    <span className="text-[10px] font-black text-text-secondary uppercase tracking-wider">Não tem uma conta?</span>
                     <button
                       onClick={() => navigateTo("signup", true)}
-                      className="w-full bg-white border border-gray-300 text-text-main font-extrabold text-xs py-4.5 px-6 rounded-full uppercase tracking-widest hover:bg-gray-50 active:scale-95 transition-all shadow-sm h-14"
+                      className="w-full bg-white border border-gray-300 text-text-main font-extrabold text-xs py-3.5 px-6 rounded-full uppercase tracking-widest hover:bg-gray-50 active:scale-95 transition-all shadow-sm h-12 cursor-pointer"
                     >
                       CRIAR UMA CONTA
                     </button>
@@ -416,34 +331,34 @@ export default function LoginPage() {
                   animate="center"
                   exit="exit"
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                  className="absolute inset-0 px-6 pt-10 pb-8 flex flex-col justify-between overflow-y-auto no-scrollbar"
+                  className="absolute inset-0 px-6 pt-[calc(env(safe-area-inset-top)+32px)] lg:pt-12 pb-28 lg:pb-8 flex flex-col justify-between overflow-y-auto no-scrollbar"
                 >
                   <div>
                     {/* Back Button */}
                     <button
                       onClick={() => navigateTo("signin", false)}
-                      className="mb-4 p-2.5 bg-gray-50 hover:bg-gray-100 text-text-secondary rounded-full active:scale-90 transition-all self-start"
-                      title="Voltar"
+                      className="mb-2 p-2 bg-gray-50 hover:bg-gray-100 text-text-secondary rounded-full active:scale-90 transition-all self-start cursor-pointer"
+                      title="Voltar ao Login"
                     >
                       <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
                     </button>
 
                     {/* Header */}
-                    <h3 className="text-center font-black text-2xl text-text-main">
+                    <h3 className="text-center font-black text-xl lg:text-2xl text-text-main">
                       Nova Conta
                     </h3>
-                    <p className="text-center text-sm font-bold text-text-secondary mt-1">
+                    <p className="text-center text-xs font-bold text-text-secondary mt-0.5">
                       Faça parte da nossa rota acessível
                     </p>
 
                     {/* Form - Translated */}
-                    <form onSubmit={handleSignUp} className="flex flex-col gap-4 mt-6 max-w-sm mx-auto">
+                    <form onSubmit={handleSignUp} className="flex flex-col gap-3 mt-4 max-w-sm mx-auto">
                       <div>
-                        <label htmlFor="signup-name" className="block text-[11px] font-black uppercase text-text-secondary tracking-wider mb-2 pl-1">
+                        <label htmlFor="signup-name" className="block text-[10px] font-black uppercase text-text-secondary tracking-wider mb-1 pl-1">
                           Nome Completo
                         </label>
                         <div className="relative flex items-center">
-                          <UserIcon className="w-5 h-5 text-text-secondary absolute left-5" />
+                          <UserIcon className="w-4 h-4 text-text-secondary absolute left-4" />
                           <input
                             id="signup-name"
                             type="text"
@@ -451,17 +366,17 @@ export default function LoginPage() {
                             placeholder="Seu nome"
                             value={fullName}
                             onChange={(e) => setFullName(e.target.value)}
-                            className="w-full bg-white border border-gray-200 rounded-full pl-13 pr-5 py-3 text-base text-text-main font-semibold focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 h-14"
+                            className="w-full bg-white border border-gray-200 rounded-full pl-11 pr-5 py-2.5 text-sm text-text-main font-semibold focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 h-11"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label htmlFor="signup-email" className="block text-[11px] font-black uppercase text-text-secondary tracking-wider mb-2 pl-1">
+                        <label htmlFor="signup-email" className="block text-[10px] font-black uppercase text-text-secondary tracking-wider mb-1 pl-1">
                           Endereço de E-mail
                         </label>
                         <div className="relative flex items-center">
-                          <Mail className="w-5 h-5 text-text-secondary absolute left-5" />
+                          <Mail className="w-4 h-4 text-text-secondary absolute left-4" />
                           <input
                             id="signup-email"
                             type="email"
@@ -469,13 +384,13 @@ export default function LoginPage() {
                             placeholder="exemplo@email.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-white border border-gray-200 rounded-full pl-13 pr-5 py-3 text-base text-text-main font-semibold focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 h-14"
+                            className="w-full bg-white border border-gray-200 rounded-full pl-11 pr-5 py-2.5 text-sm text-text-main font-semibold focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 h-11"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label htmlFor="signup-pwd" className="block text-[11px] font-black uppercase text-text-secondary tracking-wider mb-2 pl-1">
+                        <label htmlFor="signup-pwd" className="block text-[10px] font-black uppercase text-text-secondary tracking-wider mb-1 pl-1">
                           Senha
                         </label>
                         <div className="relative">
@@ -486,20 +401,20 @@ export default function LoginPage() {
                             placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full bg-white border border-gray-200 rounded-full pl-5 pr-13 py-3 text-base text-text-main font-semibold focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 h-14"
+                            className="w-full bg-white border border-gray-200 rounded-full pl-5 pr-11 py-2.5 text-sm text-text-main font-semibold focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 h-11"
                           />
                           <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary p-2 rounded-full hover:bg-gray-50 transition-colors"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary p-1.5 rounded-full hover:bg-gray-50 transition-colors"
                           >
-                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
                         </div>
                       </div>
 
                       <div>
-                        <label htmlFor="signup-conf-pwd" className="block text-[11px] font-black uppercase text-text-secondary tracking-wider mb-2 pl-1">
+                        <label htmlFor="signup-conf-pwd" className="block text-[10px] font-black uppercase text-text-secondary tracking-wider mb-1 pl-1">
                           Confirmar Senha
                         </label>
                         <input
@@ -509,7 +424,7 @@ export default function LoginPage() {
                           placeholder="••••••••"
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="w-full bg-white border border-gray-200 rounded-full px-5 py-3 text-base text-text-main font-semibold focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 h-14"
+                          className="w-full bg-white border border-gray-200 rounded-full px-5 py-2.5 text-sm text-text-main font-semibold focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/50 h-11"
                         />
                       </div>
 
@@ -523,7 +438,7 @@ export default function LoginPage() {
                       <button
                         type="submit"
                         disabled={loading}
-                        className="w-full bg-brand hover:bg-brand-dark text-white font-extrabold text-sm py-4.5 px-6 rounded-full uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-brand/10 mt-3 h-14 flex items-center justify-center"
+                        className="w-full bg-brand hover:bg-brand-dark text-white font-extrabold text-xs py-3.5 px-6 rounded-full uppercase tracking-widest active:scale-95 transition-all shadow-md shadow-brand/10 mt-2 h-11 flex items-center justify-center cursor-pointer"
                       >
                         {loading ? (
                           <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -535,11 +450,11 @@ export default function LoginPage() {
                   </div>
 
                   {/* Footer Back to Sign In */}
-                  <div className="mt-8 text-center max-w-sm mx-auto w-full flex flex-col gap-3 flex-shrink-0">
-                    <span className="text-[11px] font-black text-text-secondary uppercase tracking-wider">Já tem uma conta?</span>
+                  <div className="mt-4 text-center max-w-sm mx-auto w-full flex flex-col gap-2 flex-shrink-0">
+                    <span className="text-[10px] font-black text-text-secondary uppercase tracking-wider">Já tem uma conta?</span>
                     <button
                       onClick={() => navigateTo("signin", false)}
-                      className="w-full bg-white border border-gray-300 text-text-main font-extrabold text-xs py-4.5 px-6 rounded-full uppercase tracking-widest hover:bg-gray-50 active:scale-95 transition-all shadow-sm h-14"
+                      className="w-full bg-white border border-gray-300 text-text-main font-extrabold text-xs py-3 px-6 rounded-full uppercase tracking-widest hover:bg-gray-50 active:scale-95 transition-all shadow-sm h-11 cursor-pointer"
                     >
                       ENTRAR
                     </button>
@@ -634,8 +549,6 @@ export default function LoginPage() {
             </AnimatePresence>
           </div>
         </div>
-
       </div>
-    </div>
-  );
+    );
 }

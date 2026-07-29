@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Search, QrCode, X, MapPin, Landmark } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { TouristPoint } from "@/types/point";
 import { searchAddresses, AddressResult } from "@/services/geocodingService";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 interface SearchBarProps {
   points: TouristPoint[];
@@ -26,6 +27,8 @@ export default function SearchBar({
   onOpenScanner,
   selectedPointId,
 }: SearchBarProps) {
+  const { preferences } = useAuth();
+  const reduceMotion = preferences?.reduce_motion_enabled ?? false;
   const [query, setQuery] = useState("");
   const [pointSuggestions, setPointSuggestions] = useState<TouristPoint[]>([]);
   const [addressSuggestions, setAddressSuggestions] = useState<AddressResult[]>([]);
@@ -124,7 +127,7 @@ export default function SearchBar({
   const hasResults = pointSuggestions.length > 0 || addressSuggestions.length > 0;
 
   return (
-    <div ref={containerRef} className="absolute top-[calc(env(safe-area-inset-top)+16px)] left-5 right-5 z-50 max-w-md mx-auto">
+    <div ref={containerRef} className="absolute top-[calc(env(safe-area-inset-top)+16px)] left-5 right-5 z-50 max-w-md mx-auto lg:top-4 lg:left-4 lg:right-auto lg:w-[380px] lg:max-w-none lg:mx-0">
       {/* Taller input container (h-14) for better accessibility */}
       <div className="relative flex items-center bg-white border border-gray-150 shadow-lg rounded-full px-5 py-2 h-14 transition-all duration-200 focus-within:border-brand/50 focus-within:ring-2 focus-within:ring-brand/10">
         {/* Search Icon - larger (w-5.5) */}
@@ -165,9 +168,10 @@ export default function SearchBar({
       <AnimatePresence>
         {isFocused && (hasResults || isLoadingAddresses) && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
+            initial={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            exit={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
+            transition={{ duration: reduceMotion ? 0 : 0.15 }}
             className="absolute left-0 right-0 mt-2 bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden z-50 max-h-80 overflow-y-auto"
           >
             {pointSuggestions.length > 0 && (

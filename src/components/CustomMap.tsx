@@ -11,6 +11,7 @@ interface CustomMapProps {
   onSelectPoint: (point: TouristPoint) => void;
   userLocation: [number, number] | null;
   flyToCoords: [number, number] | null;
+  reduceMotion?: boolean;
 }
 
 export default function CustomMap({
@@ -19,6 +20,7 @@ export default function CustomMap({
   onSelectPoint,
   userLocation,
   flyToCoords,
+  reduceMotion = false,
 }: CustomMapProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -148,27 +150,35 @@ export default function CustomMap({
     }
   }, [userLocation]);
 
+  // Helper to ensure Leaflet never receives NaN coordinates
+  const isValidLatLng = (lat: number, lng: number) =>
+    typeof lat === "number" && typeof lng === "number" && !isNaN(lat) && !isNaN(lng);
+
   // Fly to selected point if changed from outside
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !selectedPoint) return;
+    if (!map || !selectedPoint || !selectedPoint.coords) return;
+    const { lat, lng } = selectedPoint.coords;
+    if (!isValidLatLng(lat, lng)) return;
 
-    map.flyTo([selectedPoint.coords.lat, selectedPoint.coords.lng], 15, {
-      animate: true,
-      duration: 1.5,
+    map.flyTo([lat, lng], 15, {
+      animate: !reduceMotion,
+      duration: reduceMotion ? 0 : 1.5,
     });
-  }, [selectedPoint]);
+  }, [selectedPoint, reduceMotion]);
 
   // Fly to user coordinates on location centering trigger
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !flyToCoords) return;
+    const [lat, lng] = flyToCoords;
+    if (!isValidLatLng(lat, lng)) return;
 
-    map.flyTo(flyToCoords, 15, {
-      animate: true,
-      duration: 1.5,
+    map.flyTo([lat, lng], 15, {
+      animate: !reduceMotion,
+      duration: reduceMotion ? 0 : 1.5,
     });
-  }, [flyToCoords]);
+  }, [flyToCoords, reduceMotion]);
 
   return (
     <div className="relative w-full h-full overflow-hidden select-none">

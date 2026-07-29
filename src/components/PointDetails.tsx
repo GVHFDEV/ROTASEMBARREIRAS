@@ -5,6 +5,7 @@ import { TouristPoint } from "@/types/point";
 import { ArrowLeft, MapPin, Accessibility, Volume2, Bookmark, Check, ShieldCheck, Headphones, Video, Images, Play, Pause, Square, Gauge } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSpeechReader, SpeechSegment } from "@/hooks/useSpeechReader";
+import { useAuth } from "@/context/AuthContext";
 
 interface PointDetailsProps {
   point: TouristPoint;
@@ -19,7 +20,7 @@ function SkeletonBlock({ className }: { className: string }) {
 
 function PointDetailsSkeleton({ onBack }: { onBack: () => void }) {
   return (
-    <div className="absolute inset-0 bg-bg-app z-50 overflow-hidden flex flex-col pb-24">
+    <div className="absolute inset-0 bg-bg-app z-50 overflow-hidden flex flex-col pb-24 lg:top-0 lg:left-0 lg:bottom-0 lg:right-auto lg:w-[390px] lg:h-full lg:rounded-none lg:shadow-2xl lg:border-r lg:border-gray-200 lg:pb-6">
       <div className="relative w-full h-80 flex-shrink-0 bg-gray-200 animate-pulse">
         <button
           onClick={onBack}
@@ -97,26 +98,41 @@ export default function PointDetails({ point, onBack, voiceActive }: PointDetail
     }
   }, [point.image]);
 
+  const { preferences } = useAuth();
+  const reduceMotion = preferences?.reduce_motion_enabled ?? false;
+  // Detect desktop viewport to change slide direction (mobile: from right, desktop: from left)
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= 1024);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   if (!imageLoaded) {
     return <PointDetailsSkeleton onBack={onBack} />;
   }
 
+  const slideFrom = reduceMotion ? 0 : isDesktop ? "-100%" : "100%";
+
   return (
     <motion.div
-      initial={{ x: "100%" }}
+      initial={reduceMotion ? { x: 0 } : { x: slideFrom }}
       animate={{ x: 0 }}
-      exit={{ x: "100%" }}
-      transition={{ type: "spring", damping: 28, stiffness: 220 }}
-      className="absolute inset-0 bg-bg-app z-50 overflow-y-auto no-scrollbar flex flex-col pb-24"
+      exit={reduceMotion ? { x: 0 } : { x: slideFrom }}
+      transition={reduceMotion ? { duration: 0 } : { type: "spring", damping: 28, stiffness: 220 }}
+      className="absolute inset-0 bg-bg-app z-[65] overflow-y-auto no-scrollbar flex flex-col pb-24 lg:top-0 lg:left-0 lg:bottom-0 lg:right-auto lg:w-[390px] lg:h-full lg:rounded-none lg:shadow-2xl lg:border-r lg:border-gray-200 lg:pb-6"
     >
       {/* Top Banner Image */}
       <div className="relative w-full h-80 flex-shrink-0 bg-zinc-800">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={point.image}
-          alt={point.name}
-          className="w-full h-full object-cover opacity-90"
-        />
+        {point.image ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={point.image}
+            alt={point.name}
+            className="w-full h-full object-cover opacity-90"
+          />
+        ) : null}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         
         {/* Taller Back Button (w-12 h-12) */}
@@ -161,14 +177,14 @@ export default function PointDetails({ point, onBack, voiceActive }: PointDetail
         </div>
 
         {/* Image Gallery - only rendered when cadastro has extra photos */}
-        {point.gallery.length > 0 && (
+        {point.gallery.filter(Boolean).length > 0 && (
           <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-md">
             <h3 className="text-xl font-black text-text-main flex items-center gap-2 border-b border-gray-100 pb-4 mb-5">
               <Images className="w-6 h-6 text-brand" />
               Galeria de Fotos
             </h3>
             <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-              {point.gallery.map((url, index) => (
+              {point.gallery.filter(Boolean).map((url, index) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={index}

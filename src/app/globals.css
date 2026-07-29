@@ -181,8 +181,29 @@ input, select, textarea {
   opacity: 1 !important;
 }
 
-.theme-high-contrast [class*="bg-gradient-"] {
-  background-color: transparent !important;
+/* Hide decorative gradient overlays in high contrast so the image underneath is fully visible */
+.theme-high-contrast [class*="bg-gradient-"],
+.theme-high-contrast div[class*="bg-gradient-"],
+.theme-high-contrast .absolute.inset-0.bg-gradient-to-t {
+  display: none !important;
+}
+
+/* Accessibility Toggles High Contrast Styling */
+.theme-high-contrast .accessibility-toggle-track {
+  background-color: #000000 !important;
+  border: 2px solid #ffffff !important;
+}
+
+.theme-high-contrast .accessibility-toggle-track[data-active="true"] {
+  background-color: #ffff00 !important;
+}
+
+.theme-high-contrast .accessibility-toggle-thumb {
+  background-color: #ffffff !important;
+}
+
+.theme-high-contrast .accessibility-toggle-track[data-active="true"] .accessibility-toggle-thumb {
+  background-color: #000000 !important;
 }
 
 /* ================================================================
@@ -215,6 +236,40 @@ div[vw] {
 .font-scale-xl .accessibility-menu-panel span,
 .font-scale-xl .accessibility-menu-panel p {
   font-size: 110% !important;
+}
+
+/* ================================================================
+   Reduce Motion (Reduzir Movimento) Global CSS Rules
+   Disables ALL CSS transitions, animations, keyframes, pulses,
+   hover/active scale transforms, and smooth scrolling across the ENTIRE app.
+   ================================================================ */
+.reduce-motion,
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation: none !important;
+  animation-duration: 0s !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
+  transition: none !important;
+  transition-property: none !important;
+  transition-duration: 0s !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
+}
+
+.reduce-motion .animate-spin,
+.reduce-motion .animate-pulse,
+.reduce-motion .animate-ping,
+.reduce-motion .user-location-pulse {
+  animation: none !important;
+}
+
+/* Neutralize interactive hover/active scale scaling under reduce-motion */
+.reduce-motion [class*="scale-"],
+.reduce-motion [class*="active:scale-"],
+.reduce-motion [class*="hover:scale-"] {
+  transform: none !important;
 }
 
 

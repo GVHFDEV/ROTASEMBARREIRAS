@@ -53,3 +53,21 @@ Para evitar que a interface pareça gerada artificialmente, seguimos as regras e
 - **Mapa real e integrado**: Uso do Leaflet com dados geográficos autênticos, sem simulações estáticas em SVG que denunciam soluções incompletas.
 - **Sem rodapés de créditos/localização**: É estritamente proibido exibir rodapés com créditos da equipe ('Equipe Carnelian', 'ONG UAI') ou da cidade ('Governador Valadares - MG') na parte inferior das telas (login, perfil, etc.).
 
+---
+
+## 4. Diretrizes de Trilhas e Gamificação (Clean Duolingo Style)
+Para a interface do sistema de caminhos de trilhas:
+- **Caminho Sinuoso Limpo**: O caminho de nós/paradas conecta os pontos turísticos em curvas de forma limpa.
+- **Sem Números**: É proibido numerar os círculos dos pontos ou badges flutuantes nos nós do caminho. O progresso é indicado puramente por pins (não visitados) ou checks (visitados).
+- **Bottom Sheet de Informações**: Ao tocar em um ponto turístico, o painel deve exibir uma miniatura quadrada da foto à esquerda e o título à direita. Os botões de navegação "Ver no Mapa" e "Escanear e Desbloquear" devem ser enfileirados verticalmente.
+- **Segurança de Selo**: O bottom sheet do selo de conquista (troféu laranja e branco) só pode ser acessado quando todas as paradas da trilha forem completadas (100% progresso). O botão de troféu no topo da trilha adota cor cinza enquanto estiver bloqueado.
+
+---
+
+## 5. Diretrizes da Central de Voz (Flat Style)
+Para a interface de navegação e assistente por comandos de voz:
+- **Integração no Menu**: O assistente deve ser acessado como uma aba oficial na barra de navegação inferior (Voz). É proibido utilizar overlays escuros ou pop-ups flutuantes.
+- **Visual Flat Completo**: A página deve possuir fundo claro padrão (`bg-bg-app`), paleta inteiramente no laranja da marca e ser livre de sombras projetadas (sem elevação).
+- **Sem Duplicação de Ícones**: O orbe de feedback central deve utilizar estritamente o ícone `Sparkles` (estrelas) para evitar duplicidade visual com o ícone de microfone do botão de silenciamento.
+- **Sem Alertas de Navegador**: Fica expressamente proibida a utilização de alertas nativos (`alert()`) no processamento de voz, scanner de QR Code ou bloqueio de funcionalidades.
+

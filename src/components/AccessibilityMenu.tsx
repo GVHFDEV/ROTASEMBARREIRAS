@@ -2,7 +2,16 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Accessibility, Contrast, Languages, Volume2, Type, X } from "lucide-react";
+import {
+  Accessibility,
+  Contrast,
+  Languages,
+  Volume2,
+  Type,
+  ArrowLeft,
+  Check,
+  ZapOff,
+} from "lucide-react";
 
 interface AccessibilityMenuProps {
   isHighContrast: boolean;
@@ -13,6 +22,8 @@ interface AccessibilityMenuProps {
   setVLibrasActive: (v: boolean) => void;
   voiceActive: boolean;
   setVoiceActive: (v: boolean) => void;
+  reduceMotionActive: boolean;
+  setReduceMotionActive: (v: boolean) => void;
 }
 
 export default function AccessibilityMenu({
@@ -24,222 +35,278 @@ export default function AccessibilityMenu({
   setVLibrasActive,
   voiceActive,
   setVoiceActive,
+  reduceMotionActive,
+  setReduceMotionActive,
 }: AccessibilityMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Guard against fontScale arriving as undefined/invalid (e.g. font_scale
-  // column missing from an older accessibility_preferences row before the
-  // migration ran) — treat anything unrecognized as "normal" instead of
-  // silently no-oping both buttons.
   const FONT_STEPS: Array<"normal" | "lg" | "xl"> = ["normal", "lg", "xl"];
   const safeScale = FONT_STEPS.includes(fontScale) ? fontScale : "normal";
 
-  const getFontScaleLabel = () => {
-    switch (safeScale) {
-      case "lg":
-        return "Grande";
-      case "xl":
-        return "Extra G.";
-      default:
-        return "Normal";
-    }
-  };
-
-  const handleIncreaseFont = () => {
-    const nextIndex = Math.min(FONT_STEPS.indexOf(safeScale) + 1, FONT_STEPS.length - 1);
-    setFontScale(FONT_STEPS[nextIndex]);
-  };
-
-  const handleDecreaseFont = () => {
-    const nextIndex = Math.max(FONT_STEPS.indexOf(safeScale) - 1, 0);
-    setFontScale(FONT_STEPS[nextIndex]);
-  };
-
-  // High contrast adaptive styling helpers
-  const panelBg = isHighContrast ? "bg-black border-2 border-white text-white" : "bg-white border border-gray-150 text-text-main";
-  const buttonActiveBg = isHighContrast ? "bg-yellow-400 text-black border-2 border-white" : "bg-brand text-white";
-  const buttonInactiveBg = isHighContrast ? "bg-zinc-900 text-white border border-zinc-700" : "bg-gray-100 text-text-secondary hover:bg-gray-200/70";
-  const dividerColor = isHighContrast ? "border-zinc-800" : "border-gray-100";
+  // High contrast styling overrides
+  const pageBg = isHighContrast ? "bg-black text-white" : "bg-bg-app text-text-main";
+  const cardBg = isHighContrast
+    ? "bg-zinc-950 border-2 border-white text-white"
+    : "bg-white border border-gray-100/80 shadow-md text-text-main";
+  const iconBoxBg = isHighContrast
+    ? "bg-black text-yellow-400 border border-white"
+    : "bg-brand-light text-brand";
+  const buttonActiveBg = isHighContrast
+    ? "bg-yellow-400 text-black border-2 border-white"
+    : "bg-brand text-white";
+  const buttonInactiveBg = isHighContrast
+    ? "bg-zinc-900 text-white border border-zinc-700"
+    : "bg-gray-150 text-text-secondary hover:bg-gray-200";
 
   return (
     <>
-      {/* Floating Accessibility Bubble - Vertically Centered on Right Side */}
+      {/* Floating Accessibility Circle Button - Fixed on Right Side */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`absolute right-4 top-[45%] -translate-y-1/2 z-[60] w-12.5 h-12.5 rounded-full shadow-2xl flex items-center justify-center transition-all active:scale-90 hover:scale-105 cursor-pointer border ${
+        onClick={() => setIsOpen(true)}
+        className={`absolute right-4 top-[45%] -translate-y-1/2 z-[60] w-13 h-13 rounded-full shadow-2xl flex items-center justify-center transition-all active:scale-90 hover:scale-105 cursor-pointer border lg:top-4 lg:right-4 lg:translate-y-0 ${
           isHighContrast
             ? "bg-yellow-400 border-white text-black font-black"
             : "bg-brand border-brand/10 text-white"
         }`}
-        aria-label="Menu de Acessibilidade"
+        aria-label="Abrir Tela de Acessibilidade"
+        title="Abrir Central de Acessibilidade"
       >
-        <Accessibility className="w-6.5 h-6.5 stroke-[2.3]" />
+        <Accessibility className="w-7 h-7 stroke-[2.3]" />
       </button>
 
-      {/* Slide-over Settings Panel */}
+      {/* Dedicated Accessibility Screen with Slide Transition (From the side) */}
       <AnimatePresence>
         {isOpen && (
-          <>
-            {/* Click-away backdrop overlay inside device frame */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.15 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsOpen(false)}
-              className="absolute inset-0 bg-black z-[55] pointer-events-auto"
-            />
-
-            {/* Menu Card - w-[325px] width prevents wrapping issues under text scaling */}
-            <motion.div
-              initial={{ opacity: 0, x: 50, scale: 0.95 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 50, scale: 0.95 }}
-              transition={{ type: "spring", damping: 24, stiffness: 240 }}
-              className={`absolute right-16 top-[45%] -translate-y-1/2 w-[325px] rounded-[24px] shadow-[0_16px_40px_rgba(0,0,0,0.12)] p-5 z-[60] flex flex-col gap-4.5 overflow-hidden accessibility-menu-panel ${panelBg}`}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <Accessibility className="w-5.5 h-5.5 text-brand" />
-                  <span className="font-extrabold text-sm tracking-wide uppercase">Acessibilidade</span>
-                </div>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className={`p-1.5 rounded-full transition-colors cursor-pointer ${
-                    isHighContrast ? "hover:bg-zinc-800 text-white" : "hover:bg-gray-100 text-text-secondary"
-                  }`}
-                >
-                  <X className="w-5 h-5" />
-                </button>
+          <motion.div
+            initial={reduceMotionActive ? { x: 0 } : { x: "100%" }}
+            animate={{ x: 0 }}
+            exit={reduceMotionActive ? { x: 0 } : { x: "100%" }}
+            transition={reduceMotionActive ? { duration: 0 } : { type: "spring", damping: 30, stiffness: 300 }}
+            className={`absolute inset-0 z-[70] flex flex-col overflow-hidden ${pageBg} lg:left-auto lg:right-0 lg:top-0 lg:bottom-0 lg:w-[380px] lg:border-l lg:border-gray-200 lg:shadow-2xl`}
+          >
+            {/* Header */}
+            <div className={`px-6 pt-[calc(env(safe-area-inset-top)+20px)] pb-4 flex items-center gap-4 border-b flex-shrink-0 ${
+              isHighContrast ? "border-zinc-800 bg-black" : "border-gray-100 bg-white/80 backdrop-blur-md"
+            }`}>
+              <button
+                onClick={() => setIsOpen(false)}
+                className={`p-2.5 rounded-full transition-all active:scale-95 cursor-pointer ${
+                  isHighContrast
+                    ? "bg-zinc-900 text-yellow-400 border border-zinc-700 hover:bg-zinc-800"
+                    : "bg-gray-100 text-text-main hover:bg-gray-200"
+                }`}
+                aria-label="Voltar"
+              >
+                <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
+              </button>
+              <div>
+                <h1 className="font-black text-lg leading-tight flex items-center gap-2">
+                  <Accessibility className="w-5 h-5 text-brand" />
+                  Central de Acessibilidade
+                </h1>
               </div>
+            </div>
 
-              <div className={`border-t ${dividerColor}`} />
-
-              {/* Option 1: VLibras */}
-              <div className="flex items-center justify-between gap-3 w-full flex-shrink-0">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isHighContrast ? "bg-zinc-950 text-yellow-400" : "bg-brand-light text-brand"}`}>
-                    <Languages className="w-5.5 h-5.5" />
+            {/* Scrollable Content Body */}
+            <div className="flex-1 overflow-y-auto no-scrollbar p-6 flex flex-col gap-5">
+              
+              {/* Card 1: VLibras */}
+              <div className={`rounded-3xl p-5 flex flex-col gap-4 ${cardBg}`}>
+                <div className="flex items-start gap-3.5 min-w-0">
+                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${iconBoxBg}`}>
+                    <Languages className="w-6 h-6" />
                   </div>
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="font-bold text-xs tracking-wide truncate">VLibras</span>
-                    <span className="text-[10px] text-text-secondary font-medium truncate">Tradutor em Libras</span>
+                  <div>
+                    <h3 className="font-black text-base leading-snug">VLibras (Gov.br)</h3>
+                    <p className="text-xs text-text-secondary font-medium mt-1 leading-relaxed">
+                      Exibe o assistente virtual 3D oficial do Governo Federal para tradução automática do conteúdo em Língua Brasileira de Sinais.
+                    </p>
                   </div>
                 </div>
-                {/* Switch Toggle */}
-                <button
-                  onClick={() => setVLibrasActive(!vLibrasActive)}
-                  className={`w-13 h-7.5 rounded-full relative transition-all duration-200 cursor-pointer flex-shrink-0 ${
-                    vLibrasActive ? buttonActiveBg : buttonInactiveBg
-                  }`}
-                  style={{ minWidth: "52px", minHeight: "30px" }}
-                >
-                  <motion.div
-                    layout
-                    className={`w-5.5 h-5.5 rounded-full absolute top-[3px] shadow-sm ${
-                      isHighContrast ? (vLibrasActive ? "bg-black" : "bg-white") : "bg-white"
-                    }`}
-                    animate={{ x: vLibrasActive ? 23 : 3 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  />
-                </button>
-              </div>
 
-              {/* Option 2: Alto Contraste */}
-              <div className="flex items-center justify-between gap-3 w-full flex-shrink-0">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isHighContrast ? "bg-zinc-950 text-yellow-400" : "bg-brand-light text-brand"}`}>
-                    <Contrast className="w-5.5 h-5.5" />
-                  </div>
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="font-bold text-xs tracking-wide truncate">Alto Contraste</span>
-                    <span className="text-[10px] text-text-secondary font-medium truncate">Cores de alta visibilidade</span>
-                  </div>
-                </div>
-                {/* Switch Toggle */}
-                <button
-                  onClick={() => setIsHighContrast(!isHighContrast)}
-                  className={`w-13 h-7.5 rounded-full relative transition-all duration-200 cursor-pointer flex-shrink-0 ${
-                    isHighContrast ? buttonActiveBg : buttonInactiveBg
-                  }`}
-                  style={{ minWidth: "52px", minHeight: "30px" }}
-                >
-                  <motion.div
-                    layout
-                    className={`w-5.5 h-5.5 rounded-full absolute top-[3px] shadow-sm ${
-                      isHighContrast ? "bg-black" : "bg-white"
-                    }`}
-                    animate={{ x: isHighContrast ? 23 : 3 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  />
-                </button>
-              </div>
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100/80">
+                  <span className="text-xs font-bold text-text-secondary">
+                    Status: <strong className={vLibrasActive ? "text-brand" : ""}>{vLibrasActive ? "Ativado" : "Desativado"}</strong>
+                  </span>
 
-              {/* Option 3: Tamanho de Fonte (A- / A+) */}
-              <div className="flex items-center justify-between gap-3 w-full flex-shrink-0">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isHighContrast ? "bg-zinc-950 text-yellow-400" : "bg-brand-light text-brand"}`}>
-                    <Type className="w-5.5 h-5.5" />
-                  </div>
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="font-bold text-xs tracking-wide truncate">Fonte: {getFontScaleLabel()}</span>
-                    <span className="text-[10px] text-text-secondary font-medium truncate">Aumentar/reduzir texto</span>
-                  </div>
-                </div>
-                <div className="flex items-center bg-gray-100 rounded-full p-0.5 border border-gray-200/55 flex-shrink-0" style={{ minHeight: "36px" }}>
+                  {/* Switch Toggle */}
                   <button
-                    onClick={handleDecreaseFont}
-                    disabled={safeScale === "normal"}
-                    className={`w-9 h-8 rounded-full font-black text-xs transition-all flex items-center justify-center disabled:opacity-40 disabled:pointer-events-none cursor-pointer ${
-                      isHighContrast ? "text-black hover:bg-yellow-350" : "text-text-main hover:bg-white"
+                    data-active={vLibrasActive}
+                    onClick={() => setVLibrasActive(!vLibrasActive)}
+                    className={`accessibility-toggle-track w-14 h-8 rounded-full relative transition-colors duration-200 cursor-pointer flex-shrink-0 p-1 ${
+                      vLibrasActive ? buttonActiveBg : buttonInactiveBg
                     }`}
+                    aria-label="Alternar VLibras"
                   >
-                    A-
-                  </button>
-                  <button
-                    onClick={handleIncreaseFont}
-                    disabled={safeScale === "xl"}
-                    className={`w-9 h-8 rounded-full font-black text-xs transition-all flex items-center justify-center disabled:opacity-40 disabled:pointer-events-none cursor-pointer ${
-                      isHighContrast ? "text-black hover:bg-yellow-350" : "text-text-main hover:bg-white"
-                    }`}
-                  >
-                    A+
+                    <motion.div
+                      layout
+                      className="accessibility-toggle-thumb w-6 h-6 rounded-full shadow-md bg-white"
+                      animate={{ x: vLibrasActive ? 24 : 0 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    />
                   </button>
                 </div>
               </div>
 
-              {/* Option 4: Leitura em voz alta */}
-              <div className="flex items-center justify-between gap-3 w-full flex-shrink-0">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isHighContrast ? "bg-zinc-950 text-yellow-400" : "bg-brand-light text-brand"}`}>
-                    <Volume2 className="w-5.5 h-5.5" />
+              {/* Card 2: Alto Contraste */}
+              <div className={`rounded-3xl p-5 flex flex-col gap-4 ${cardBg}`}>
+                <div className="flex items-start gap-3.5 min-w-0">
+                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${iconBoxBg}`}>
+                    <Contrast className="w-6 h-6" />
                   </div>
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="font-bold text-xs tracking-wide truncate">Voz Alta</span>
-                    <span className="text-[10px] text-text-secondary font-medium truncate">Ler elementos selecionados</span>
+                  <div>
+                    <h3 className="font-black text-base leading-snug">Modo de Alto Contraste</h3>
+                    <p className="text-xs text-text-secondary font-medium mt-1 leading-relaxed">
+                      Aplica paleta de alto contraste em preto e amarelo, otimizada para pessoas com baixa visão ou fotofobia.
+                    </p>
                   </div>
                 </div>
-                {/* Switch Toggle */}
-                <button
-                  onClick={() => setVoiceActive(!voiceActive)}
-                  className={`w-13 h-7.5 rounded-full relative transition-all duration-200 cursor-pointer flex-shrink-0 ${
-                    voiceActive ? buttonActiveBg : buttonInactiveBg
-                  }`}
-                  style={{ minWidth: "52px", minHeight: "30px" }}
-                >
-                  <motion.div
-                    layout
-                    className={`w-5.5 h-5.5 rounded-full absolute top-[3px] shadow-sm ${
-                      isHighContrast ? (voiceActive ? "bg-black" : "bg-white") : "bg-white"
+
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100/80">
+                  <span className="text-xs font-bold text-text-secondary">
+                    Status: <strong className={isHighContrast ? "text-yellow-400" : ""}>{isHighContrast ? "Ativado" : "Desativado"}</strong>
+                  </span>
+
+                  {/* Switch Toggle */}
+                  <button
+                    data-active={isHighContrast}
+                    onClick={() => setIsHighContrast(!isHighContrast)}
+                    className={`accessibility-toggle-track w-14 h-8 rounded-full relative transition-colors duration-200 cursor-pointer flex-shrink-0 p-1 ${
+                      isHighContrast ? buttonActiveBg : buttonInactiveBg
                     }`}
-                    animate={{ x: voiceActive ? 23 : 3 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  />
-                </button>
+                    aria-label="Alternar Alto Contraste"
+                  >
+                    <motion.div
+                      layout
+                      className="accessibility-toggle-thumb w-6 h-6 rounded-full shadow-md bg-white"
+                      animate={{ x: isHighContrast ? 24 : 0 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    />
+                  </button>
+                </div>
               </div>
 
-            </motion.div>
-          </>
+              {/* Card 3: Tamanho de Fonte */}
+              <div className={`rounded-3xl p-5 flex flex-col gap-4 ${cardBg}`}>
+                <div className="flex items-start gap-3.5 min-w-0">
+                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${iconBoxBg}`}>
+                    <Type className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base leading-snug">Tamanho do Texto</h3>
+                    <p className="text-xs text-text-secondary font-medium mt-1 leading-relaxed">
+                      Redimensione proporcionalmente as fontes de menus, descrições e títulos para maior conforto visual.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Scale buttons selector */}
+                <div className="flex flex-col gap-3 pt-2 border-t border-gray-100/80">
+                  {/* Visual scale options pill list */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {FONT_STEPS.map((step) => {
+                      const isSelected = safeScale === step;
+                      return (
+                        <button
+                          key={step}
+                          onClick={() => setFontScale(step)}
+                          className={`py-2 px-3 rounded-2xl text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer border ${
+                            isSelected
+                              ? isHighContrast
+                                ? "bg-yellow-400 border-white text-black"
+                                : "bg-brand border-brand text-white shadow-md"
+                              : isHighContrast
+                                ? "bg-zinc-900 border-zinc-700 text-white"
+                                : "bg-gray-100 border-gray-200 text-text-secondary hover:bg-gray-150"
+                          }`}
+                        >
+                          {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                          {step === "normal" ? "Padrão" : step === "lg" ? "Grande" : "Extra G."}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 4: Leitura em Voz Alta */}
+              <div className={`rounded-3xl p-5 flex flex-col gap-4 ${cardBg}`}>
+                <div className="flex items-start gap-3.5 min-w-0">
+                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${iconBoxBg}`}>
+                    <Volume2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base leading-snug">Leitura em Voz Alta</h3>
+                    <p className="text-xs text-text-secondary font-medium mt-1 leading-relaxed">
+                      Ativa assistência sonora e audiodescrição em guias turísticos e detalhes de monumentos.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100/80">
+                  <span className="text-xs font-bold text-text-secondary">
+                    Status: <strong className={voiceActive ? "text-brand" : ""}>{voiceActive ? "Ativado" : "Desativado"}</strong>
+                  </span>
+
+                  {/* Switch Toggle */}
+                  <button
+                    data-active={voiceActive}
+                    onClick={() => setVoiceActive(!voiceActive)}
+                    className={`accessibility-toggle-track w-14 h-8 rounded-full relative transition-colors duration-200 cursor-pointer flex-shrink-0 p-1 ${
+                      voiceActive ? buttonActiveBg : buttonInactiveBg
+                    }`}
+                    aria-label="Alternar Leitura em Voz Alta"
+                  >
+                    <motion.div
+                      layout
+                      className="accessibility-toggle-thumb w-6 h-6 rounded-full shadow-md bg-white"
+                      animate={{ x: voiceActive ? 24 : 0 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 5: Reduzir Movimento */}
+              <div className={`rounded-3xl p-5 flex flex-col gap-4 ${cardBg}`}>
+                <div className="flex items-start gap-3.5 min-w-0">
+                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${iconBoxBg}`}>
+                    <ZapOff className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-base leading-snug">Reduzir Movimento</h3>
+                    <p className="text-xs text-text-secondary font-medium mt-1 leading-relaxed">
+                      Desativa todas as animações, transições e efeitos de movimento de toda a plataforma.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100/80">
+                  <span className="text-xs font-bold text-text-secondary">
+                    Status: <strong className={reduceMotionActive ? "text-brand" : ""}>{reduceMotionActive ? "Ativado" : "Desativado"}</strong>
+                  </span>
+
+                  {/* Switch Toggle */}
+                  <button
+                    data-active={reduceMotionActive}
+                    onClick={() => setReduceMotionActive(!reduceMotionActive)}
+                    className={`accessibility-toggle-track w-14 h-8 rounded-full relative transition-colors duration-200 cursor-pointer flex-shrink-0 p-1 ${
+                      reduceMotionActive ? buttonActiveBg : buttonInactiveBg
+                    }`}
+                    aria-label="Alternar Reduzir Movimento"
+                  >
+                    <motion.div
+                      layout
+                      className="accessibility-toggle-thumb w-6 h-6 rounded-full shadow-md bg-white"
+                      animate={{ x: reduceMotionActive ? 24 : 0 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    />
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </>

@@ -9,6 +9,10 @@ export interface TouristPoint {
   id: string;
   name: string;
   category: string;
+  /** Cidade cadastrada no ponto (public.pontos.cidade). Usado pelo
+   * assistente de voz para filtrar/agrupar por cidade sem precisar de
+   * outra consulta. */
+  city: string;
   coords: { lat: number; lng: number };
   image: string;
   gallery: string[];

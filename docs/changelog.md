@@ -4,6 +4,38 @@ Este arquivo registra todas as modificações, correções e refinamentos realiz
 
 ---
 
+## [Versão 1.5.1] — 20/07/2026
+
+### Adicionado (Expansão do Contexto da IA e Otimização de Tokens no Assistente de Voz)
+- **Novas Ferramentas (Tools) do Gemini Live**:
+  - `get_point_history`: Permite que a IA consulte a história detalhada, curiosidades, descrição longa e endereço completo de qualquer ponto turístico.
+  - `get_user_info`: Permite que a IA consulte os dados do perfil do usuário logado (nome próprio, e-mail, total de XP acumulado e preferências de acessibilidade ativas).
+  - `get_search_history`: Permite que a IA consulte o histórico de buscas recentes de locais pesquisados pelo usuário.
+  - `get_unlocked_badges`: Permite que a IA consulte as conquistas e selos de trilhas já desbloqueadas pelo usuário.
+- **Regra de Concisão e Economia de Tokens**:
+  - Atualizamos as instruções de sistema (`buildSystemInstruction`) em [voice-token/index.ts](file:///d:/ROTASEMBARREIRAS/supabase/functions/voice-token/index.ts) para forçar respostas de **1 a 2 sentenças (máximo 15 a 25 palavras)**.
+  - Isso reduz drasticamente o consumo de tokens, elimina falas prolixas/enrolações e torna a experiência por áudio extremamente ágil e direta.
+
+---
+
+### Adicionado (Central de Trilhas Gamificadas e Assistente de Voz Flat)
+- **Central de Trilhas e Caminho de Paradas S-Curve ([TrailsView.tsx](file:///d:/ROTASEMBARREIRAS/src/components/TrailsView.tsx))**:
+  - Implementação de listagem de trilhas flat e minimalista por cidade (0% visíveis).
+  - Caminho sinuoso estilo Duolingo interativo ligando os pontos de visita físicos.
+  - Círculos de paradas com marcador visual de estado (check laranja para visitado, pin para não visitado) **sem numeração** para manter a interface clean.
+  - Acesso ao Selo de Conquista por meio de botões de troféu na barra superior da trilha e no nó de chegada, com estilização **laranja e branca** e restrição de segurança (só abre após completar 100% das paradas). O troféu superior do cabeçalho da trilha fica **cinza** enquanto a trilha estiver bloqueada.
+- **Aba de Assistente de Voz Flat e Integrada ([VoiceView.tsx](file:///d:/ROTASEMBARREIRAS/src/components/VoiceView.tsx))**:
+  - Nova aba integrada na barra de navegação inferior (**Voz** com o ícone de estrelas `Sparkles`), abolindo a antiga sobreposição escura flutuante.
+  - Interface flat limpa em fundo claro com paleta estritamente no laranja da marca (`bg-brand`, `bg-brand-light`, `text-brand`), sem sombras.
+  - Orbe animado central fixo exibindo o ícone `Sparkles` para evitar duplicidade com o microfone do botão inferior de silenciamento.
+- **Fluxo Inteligente de Scanner QR Code ([page.tsx](file:///d:/ROTASEMBARREIRAS/src/app/page.tsx))**:
+  - Criação da propriedade `scanOrigin` para diferenciar escaneamentos efetuados nas trilhas daqueles originados na Home.
+  - Ao escanearem a partir do botão preto "Escanear e Desbloquear" de uma trilha, o progresso é validado no Supabase e o usuário retorna imediatamente para a aba de trilha com carregamento assíncrono de progresso, sem abrir a tela de detalhes.
+- **Diretriz Antialertas ([AGENTS.md](file:///d:/ROTASEMBARREIRAS/AGENTS.md))**:
+  - Remoção de qualquer `alert()` nativo nas interações de scanner e bloqueio. Adição da restrição antimodelos no manual de regras.
+
+---
+
 ## [Versão 1.4.3] — 18/07/2026
 
 ### Adicionado (Integração Oficial do VLibras gov.br)

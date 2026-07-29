@@ -3,9 +3,10 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Camera, X, QrCode, Keyboard, AlertTriangle, Loader2, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
-import { BrowserMultiFormatReader, NotFoundException } from "@zxing/library";
+import { BrowserMultiFormatReader, NotFoundException, ChecksumException, FormatException, DecodeHintType, BarcodeFormat } from "@zxing/library";
 import { TouristPoint } from "@/types/point";
 import { fetchPointByQrCode } from "@/services/pointsService";
+import { useAuth } from "@/context/AuthContext";
 
 interface QRCodeScannerProps {
   onClose: () => void;
@@ -83,7 +84,15 @@ export default function QRCodeScanner({ onClose, onScanSuccess }: QRCodeScannerP
     if (scanState !== "scanning" || !videoRef.current) return;
 
     hasScannedRef.current = false;
-    const reader = new BrowserMultiFormatReader();
+
+    // Restrict to standard QR only. Default multi-format reader also tries
+    // Micro QR/other formats every frame — those decoders fail constantly
+    // on a normal QR-only setup and zxing logs each failure straight to
+    // console.error internally (bypasses our try/catch, can't suppress
+    // otherwise). Narrowing formats here stops that noise at the source.
+    const hints = new Map();
+    hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE]);
+    const reader = new BrowserMultiFormatReader(hints);
     readerRef.current = reader;
 
     // facingMode: "environment" forces back camera on phones — required for
@@ -92,10 +101,14 @@ export default function QRCodeScanner({ onClose, onScanSuccess }: QRCodeScannerP
       .decodeFromConstraints({ video: { facingMode: "environment" } }, videoRef.current, (result, err) => {
         if (result) {
           lookupAndResolve(result.getText());
-        } else if (err && !(err instanceof NotFoundException)) {
-          // NotFoundException fires continuously while no code is in frame —
-          // that's normal scanning noise, not a real error. Anything else
-          // (permission denial, no camera, etc.) surfaces as camera_error.
+        } else if (err && !(err instanceof NotFoundException) && !(err instanceof ChecksumException) && !(err instanceof FormatException)) {
+          // NotFoundException = no code in frame yet (constant while aiming).
+          // ChecksumException = partial/blurry frame matched pattern but
+          // failed checksum (motion blur mid-scan). FormatException =
+          // pattern found but bits didn't decode to a valid format. All
+          // three are normal per-frame scanning noise, not real errors —
+          // only anything else (permission denial, no camera) is worth
+          // surfacing as camera_error.
           console.warn("QR decode error:", err);
         }
       })
@@ -126,12 +139,15 @@ export default function QRCodeScanner({ onClose, onScanSuccess }: QRCodeScannerP
     setScanState("scanning");
   };
 
+  const { preferences } = useAuth();
+  const reduceMotion = preferences?.reduce_motion_enabled ?? false;
+
   return (
     <motion.div
-      initial={{ x: "100%" }}
+      initial={reduceMotion ? { x: 0 } : { x: "100%" }}
       animate={{ x: 0 }}
-      exit={{ x: "100%" }}
-      transition={{ type: "spring", damping: 28, stiffness: 220 }}
+      exit={reduceMotion ? { x: 0 } : { x: "100%" }}
+      transition={reduceMotion ? { duration: 0 } : { type: "spring", damping: 28, stiffness: 220 }}
       className="absolute inset-0 bg-zinc-950 z-50 flex flex-col px-6 pb-10 pt-[calc(env(safe-area-inset-top)+20px)] text-white overflow-y-auto no-scrollbar"
     >
       {/* Header */}
@@ -160,8 +176,8 @@ export default function QRCodeScanner({ onClose, onScanSuccess }: QRCodeScannerP
             <div className="absolute bottom-4 left-4 w-7 h-7 border-b-4 border-l-4 border-brand rounded-bl-md pointer-events-none" />
             <div className="absolute bottom-4 right-4 w-7 h-7 border-b-4 border-r-4 border-brand rounded-br-md pointer-events-none" />
             <motion.div
-              animate={{ y: [-110, 110] }}
-              transition={{ repeat: Infinity, repeatType: "reverse", duration: 2, ease: "easeInOut" }}
+              animate={reduceMotion ? { y: 0 } : { y: [-110, 110] }}
+              transition={reduceMotion ? { duration: 0 } : { repeat: Infinity, repeatType: "reverse", duration: 2, ease: "easeInOut" }}
               className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-brand to-transparent shadow-[0_0_10px_#ff7f00] pointer-events-none"
             />
           </div>

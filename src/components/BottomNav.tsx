@@ -1,64 +1,104 @@
 "use client";
 
 import React from "react";
-import { Map, User } from "lucide-react";
+import { Map, Route, User, Sparkles } from "lucide-react";
 
 interface BottomNavProps {
-  activeTab: "home" | "profile";
-  setActiveTab: (tab: "home" | "profile") => void;
+  activeTab: "home" | "trails" | "voice" | "profile";
+  setActiveTab: (tab: "home" | "trails" | "voice" | "profile") => void;
 }
 
 export default function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
   return (
-    <div className="relative bg-white border-t border-gray-100 px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+12px)] z-40 select-none flex-shrink-0">
+    <div className="relative bg-white border-t border-gray-100 px-2 pt-2.5 pb-[calc(env(safe-area-inset-bottom)+10px)] z-40 select-none flex-shrink-0 lg:hidden">
       <div className="flex w-full max-w-md mx-auto items-center justify-around h-16">
         
-        {/* Tab Explorar */}
+        {/* Tab 1: Explorar */}
         <button
           onClick={() => setActiveTab("home")}
-          className="flex-1 flex flex-col items-center justify-center gap-1.5 h-full tap-highlight-none focus:outline-none py-1 group"
+          className="flex-1 min-h-[44px] flex flex-col items-center justify-center gap-1 h-full tap-highlight-none focus:outline-none py-1 group cursor-pointer"
         >
-          {/* Icon Container with pill background when active */}
           <div
-            className={`w-16 h-9 rounded-full flex items-center justify-center transition-all duration-200 ${
+            className={`w-14 h-8.5 rounded-full flex items-center justify-center transition-all duration-200 ${
               activeTab === "home"
                 ? "bg-brand-light text-brand scale-105"
                 : "text-text-secondary group-hover:bg-gray-50"
             }`}
           >
-            <Map className={`w-6.5 h-6.5 ${activeTab === "home" ? "stroke-[2.5]" : "stroke-[1.8]"}`} />
+            <Map className={`w-6 h-6 ${activeTab === "home" ? "stroke-[2.5]" : "stroke-[1.8]"}`} />
           </div>
-          
-          {/* Always visible label underneath */}
           <span
-            className={`text-[13px] tracking-wide transition-colors duration-200 ${
-              activeTab === "home" ? "font-bold text-brand" : "font-semibold text-text-secondary"
+            className={`text-xs tracking-wide transition-colors duration-200 ${
+              activeTab === "home" ? "font-black text-brand" : "font-semibold text-text-secondary"
             }`}
           >
             Explorar
           </span>
         </button>
 
-        {/* Tab Perfil */}
+        {/* Tab 2: Trilhas (Gamificação) */}
+        <button
+          onClick={() => setActiveTab("trails")}
+          className="flex-1 min-h-[44px] flex flex-col items-center justify-center gap-1 h-full tap-highlight-none focus:outline-none py-1 group cursor-pointer"
+        >
+          <div
+            className={`w-14 h-8.5 rounded-full flex items-center justify-center transition-all duration-200 ${
+              activeTab === "trails"
+                ? "bg-brand-light text-brand scale-105"
+                : "text-text-secondary group-hover:bg-gray-50"
+            }`}
+          >
+            <Route className={`w-6 h-6 ${activeTab === "trails" ? "stroke-[2.5]" : "stroke-[1.8]"}`} />
+          </div>
+          <span
+            className={`text-xs tracking-wide transition-colors duration-200 ${
+              activeTab === "trails" ? "font-black text-brand" : "font-semibold text-text-secondary"
+            }`}
+          >
+            Trilhas
+          </span>
+        </button>
+
+        {/* Tab 3: Voz (Assistente) */}
+        <button
+          onClick={() => setActiveTab("voice")}
+          className="flex-1 min-h-[44px] flex flex-col items-center justify-center gap-1 h-full tap-highlight-none focus:outline-none py-1 group cursor-pointer"
+        >
+          <div
+            className={`w-14 h-8.5 rounded-full flex items-center justify-center transition-all duration-200 ${
+              activeTab === "voice"
+                ? "bg-brand-light text-brand scale-105"
+                : "text-text-secondary group-hover:bg-gray-50"
+            }`}
+          >
+            <Sparkles className={`w-6 h-6 ${activeTab === "voice" ? "stroke-[2.5]" : "stroke-[1.8]"}`} />
+          </div>
+          <span
+            className={`text-xs tracking-wide transition-colors duration-200 ${
+              activeTab === "voice" ? "font-black text-brand" : "font-semibold text-text-secondary"
+            }`}
+          >
+            Voz
+          </span>
+        </button>
+
+        {/* Tab 4: Perfil */}
         <button
           onClick={() => setActiveTab("profile")}
-          className="flex-1 flex flex-col items-center justify-center gap-1.5 h-full tap-highlight-none focus:outline-none py-1 group"
+          className="flex-1 min-h-[44px] flex flex-col items-center justify-center gap-1 h-full tap-highlight-none focus:outline-none py-1 group cursor-pointer"
         >
-          {/* Icon Container with pill background when active */}
           <div
-            className={`w-16 h-9 rounded-full flex items-center justify-center transition-all duration-200 ${
+            className={`w-14 h-8.5 rounded-full flex items-center justify-center transition-all duration-200 ${
               activeTab === "profile"
                 ? "bg-brand-light text-brand scale-105"
                 : "text-text-secondary group-hover:bg-gray-50"
             }`}
           >
-            <User className={`w-6.5 h-6.5 ${activeTab === "profile" ? "stroke-[2.5]" : "stroke-[1.8]"}`} />
+            <User className={`w-6 h-6 ${activeTab === "profile" ? "stroke-[2.5]" : "stroke-[1.8]"}`} />
           </div>
-          
-          {/* Always visible label underneath */}
           <span
-            className={`text-[13px] tracking-wide transition-colors duration-200 ${
-              activeTab === "profile" ? "font-bold text-brand" : "font-semibold text-text-secondary"
+            className={`text-xs tracking-wide transition-colors duration-200 ${
+              activeTab === "profile" ? "font-black text-brand" : "font-semibold text-text-secondary"
             }`}
           >
             Perfil

@@ -11,12 +11,13 @@ interface AuthContextType {
   profile: Profile | null;
   preferences: AccessibilityPreferencesRow | null;
   loading: boolean;
+  isAnonymous: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, fullName: string) => Promise<{ needsEmailConfirmation: boolean }>;
   logout: () => Promise<void>;
   updatePreferences: (
     prefs: Partial<
-      Pick<AccessibilityPreferencesRow, "audio_enabled" | "libras_enabled" | "high_contrast_enabled" | "font_scale">
+      Pick<AccessibilityPreferencesRow, "audio_enabled" | "libras_enabled" | "high_contrast_enabled" | "font_scale" | "reduce_motion_enabled">
     >
   ) => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -29,7 +30,7 @@ const GENERIC_AUTH_ERROR = "Email ou senha incorretos.";
 
 function mapAuthError(message: string): string {
   if (message.includes("Invalid login credentials")) return GENERIC_AUTH_ERROR;
-  if (message.includes("User already registered")) return "Este email já possui cadastro.";
+  if (message.includes("User already registered") || message.includes("email already in use") || message.includes("already registered")) return "Este email já possui cadastro. Faça login para continuar.";
   if (message.includes("Password should be at least")) return "Senha muito curta (mínimo 8 caracteres).";
   if (message.includes("rate limit") || message.includes("Too many")) return "Muitas tentativas. Aguarde um momento e tente novamente.";
   if (message.includes("Email not confirmed")) return "Confirme seu email antes de entrar.";
@@ -44,20 +45,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [preferences, setPreferences] = useState<AccessibilityPreferencesRow | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const isAnonymous = user ? (user.is_anonymous ?? false) : false;
+
   const loadUserData = useCallback(async (currentUser: User) => {
     const [{ data: profileData }, { data: prefsData }] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", currentUser.id).maybeSingle(),
       supabase.from("accessibility_preferences").select("*").eq("user_id", currentUser.id).maybeSingle(),
     ]);
     if (profileData) setProfile(profileData as Profile);
+    else setProfile(null);
 
     if (prefsData) {
       setPreferences(prefsData as AccessibilityPreferencesRow);
     } else {
-      // Row missing (account predates a table reset, or signup trigger
-      // didn't run) — create defaults now instead of leaving preferences
-      // null forever, which would stop the accessibility menu from ever
-      // reflecting/persisting real state.
+      // Row missing (new anonymous or permanent user) — create defaults
       const { data: created } = await supabase
         .from("accessibility_preferences")
         .upsert({ user_id: currentUser.id }, { onConflict: "user_id" })
@@ -67,29 +68,74 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [supabase]);
 
+  // Ensure an active session exists on mount (create an anonymous session if none exists)
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      // Await prefs/profile fetch before flipping loading=false — otherwise
-      // page.tsx renders one frame with defaults (no contrast/font applied)
-      // then "flashes" to the saved theme once loadUserData resolves.
-      if (s?.user) await loadUserData(s.user);
-      setLoading(false);
-    });
+    let isMounted = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
+    async function initAuth() {
+      try {
+        const { data: { session: s } } = await supabase.auth.getSession();
+        let activeSession = s;
+
+        if (!activeSession) {
+          try {
+            const { data, error } = await supabase.auth.signInAnonymously();
+            if (!error && data?.session) {
+              activeSession = data.session;
+            }
+          } catch (err) {
+            console.warn("Supabase signInAnonymously não ativado no painel ou indisponível:", err);
+          }
+        }
+
+        if (activeSession?.user) {
+          if (isMounted) {
+            setSession(activeSession);
+            setUser(activeSession.user);
+          }
+          await loadUserData(activeSession.user);
+        } else {
+          // Fallback guest user if anonymous auth is disabled in Supabase dashboard
+          let guestId = typeof window !== "undefined" ? localStorage.getItem("rotas_guest_id") : null;
+          if (!guestId) {
+            guestId = "guest_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+            if (typeof window !== "undefined") localStorage.setItem("rotas_guest_id", guestId);
+          }
+          const guestUser: User = {
+            id: guestId,
+            app_metadata: { provider: "anonymous" },
+            user_metadata: { full_name: "Visitante" },
+            aud: "authenticated",
+            created_at: new Date().toISOString(),
+            is_anonymous: true,
+          } as unknown as User;
+
+          if (isMounted) {
+            setSession(null);
+            setUser(guestUser);
+          }
+        }
+      } catch (err) {
+        console.error("Auth init error:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    initAuth();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, s) => {
       if (s?.user) {
-        loadUserData(s.user);
-      } else {
-        setProfile(null);
-        setPreferences(null);
+        setSession(s);
+        setUser(s.user);
+        await loadUserData(s.user);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -99,30 +145,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signup = async (email: string, password: string, fullName: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName } },
-    });
-    if (error) throw new Error(mapAuthError(error.message));
-    // Supabase project w/ "Confirm email" enabled returns no session until user clicks link.
-    return { needsEmailConfirmation: !data.session };
+    if (user?.is_anonymous) {
+      // Convert anonymous account into permanent email/password user
+      // preserving exact user.id and all accumulated progress/preferences!
+      const { data, error } = await supabase.auth.updateUser({
+        email,
+        password,
+        data: { full_name: fullName },
+      });
+      if (error) throw new Error(mapAuthError(error.message));
+
+      // Save profile name
+      if (data.user) {
+        await supabase.from("profiles").upsert({
+          id: data.user.id,
+          full_name: fullName,
+          updated_at: new Date().toISOString(),
+        });
+        await loadUserData(data.user);
+      }
+      return { needsEmailConfirmation: false };
+    } else {
+      // Standard signup for brand new session
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: fullName } },
+      });
+      if (error) throw new Error(mapAuthError(error.message));
+      return { needsEmailConfirmation: !data.session };
+    }
   };
 
   const logout = async () => {
     await supabase.auth.signOut();
+    // Re-create anonymous session so the app immediately continues working
+    const { data } = await supabase.auth.signInAnonymously();
+    if (data.session) {
+      setSession(data.session);
+      setUser(data.session.user);
+      await loadUserData(data.session.user);
+    }
   };
 
   const updatePreferences = async (
     prefs: Partial<
-      Pick<AccessibilityPreferencesRow, "audio_enabled" | "libras_enabled" | "high_contrast_enabled" | "font_scale">
+      Pick<AccessibilityPreferencesRow, "audio_enabled" | "libras_enabled" | "high_contrast_enabled" | "font_scale" | "reduce_motion_enabled">
     >
   ) => {
     if (!user) return;
-    // upsert instead of update — self-heals if the row is missing (e.g.
-    // account created before a table reset/migration, trigger never
-    // re-ran for existing auth.users). update+.single() 406s with 0 rows
-    // matched; upsert creates the row on first save instead of failing.
     const { data, error } = await supabase
       .from("accessibility_preferences")
       .upsert({ user_id: user.id, ...prefs, updated_at: new Date().toISOString() }, { onConflict: "user_id" })
@@ -138,7 +209,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, session, profile, preferences, loading, login, signup, logout, updatePreferences, refreshProfile }}
+      value={{ user, session, profile, preferences, loading, isAnonymous, login, signup, logout, updatePreferences, refreshProfile }}
     >
       {children}
     </AuthContext.Provider>

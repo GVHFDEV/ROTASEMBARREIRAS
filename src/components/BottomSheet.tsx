@@ -4,6 +4,7 @@ import React from "react";
 import { TouristPoint } from "@/types/point";
 import { X, Accessibility, Volume2, Bookmark, Eye } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/context/AuthContext";
 
 interface BottomSheetProps {
   point: TouristPoint | null;
@@ -12,26 +13,30 @@ interface BottomSheetProps {
 }
 
 export default function BottomSheet({ point, onClose, onViewDetails }: BottomSheetProps) {
+  const { preferences } = useAuth();
+  const reduceMotion = preferences?.reduce_motion_enabled ?? false;
+
   return (
     <AnimatePresence>
       {point && (
         <>
           {/* Overlay backdrop relative to parent container */}
           <motion.div
-            initial={{ opacity: 0 }}
+            initial={reduceMotion ? { opacity: 0.3 } : { opacity: 0 }}
             animate={{ opacity: 0.3 }}
-            exit={{ opacity: 0 }}
+            exit={reduceMotion ? { opacity: 0.3 } : { opacity: 0 }}
+            transition={reduceMotion ? { duration: 0 } : undefined}
             onClick={onClose}
-            className="absolute inset-0 bg-black z-30 pointer-events-auto"
+            className="absolute inset-0 bg-black z-30 pointer-events-auto lg:hidden"
           />
 
-          {/* Bottom Sheet Card positioned absolute above BottomNav */}
+          {/* Bottom Sheet Card / Desktop Side Sheet — hidden on desktop (pin click goes straight to PointDetails) */}
           <motion.div
-            initial={{ y: "100%" }}
+            initial={reduceMotion ? { y: 0 } : { y: "100%" }}
             animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 220 }}
-            className="absolute bottom-0 left-0 right-0 z-40 bg-white rounded-t-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] border-t border-gray-100 w-full overflow-hidden pb-8"
+            exit={reduceMotion ? { y: 0 } : { y: "100%" }}
+            transition={reduceMotion ? { duration: 0 } : { type: "spring", damping: 25, stiffness: 220 }}
+            className="absolute bottom-0 left-0 right-0 z-40 bg-white rounded-t-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] border-t border-gray-100 w-full overflow-hidden pb-8 lg:hidden"
           >
             {/* Handle Bar */}
             <div className="flex justify-center py-4">

@@ -7,6 +7,7 @@ function rowToPoint(row: PontoRow): TouristPoint {
     id: row.id,
     name: row.nome,
     category: row.categoria,
+    city: row.cidade ?? "",
     coords: { lat: row.latitude, lng: row.longitude },
     image: row.imagem_capa ?? "",
     gallery: row.galeria_imagens ?? [],
@@ -27,11 +28,38 @@ function rowToPoint(row: PontoRow): TouristPoint {
   };
 }
 
+const POINTS_CACHE_KEY = "rotas_points_cache";
+const POINTS_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
 export async function fetchTouristPoints(): Promise<TouristPoint[]> {
+  if (typeof window !== "undefined") {
+    try {
+      const cached = localStorage.getItem(POINTS_CACHE_KEY);
+      if (cached) {
+        const { timestamp, data } = JSON.parse(cached);
+        if (Date.now() - timestamp < POINTS_CACHE_TTL_MS && Array.isArray(data)) {
+          return data as TouristPoint[];
+        }
+      }
+    } catch {
+      // Ignore cache read errors
+    }
+  }
+
   const supabase = createClient();
   const { data, error } = await supabase.from("pontos").select("*").order("criado_em", { ascending: true });
   if (error) throw error;
-  return (data as PontoRow[]).map(rowToPoint);
+  const points = (data as PontoRow[]).map(rowToPoint);
+
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.setItem(POINTS_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: points }));
+    } catch {
+      // Ignore cache write errors
+    }
+  }
+
+  return points;
 }
 
 /** Looks up a single ponto by its physical QR code value. Returns null if not found (no throw — caller shows friendly error, not a crash). */
@@ -71,6 +99,22 @@ export async function fetchSearchHistory(userId: string, limit = 20): Promise<To
     points.push(rowToPoint(row.pontos));
   }
   return points;
+}
+
+/**
+ * Records a confirmed QR scan — the ONLY source of truth for trail
+ * progress + XP. Distinct from recordSearch (user_searches), which also
+ * fires on plain map/search clicks and is not proof of a physical visit.
+ * unique(user_id, ponto_id) on the table means repeat scans of the same
+ * ponto insert-conflict harmlessly (onConflict below no-ops) — XP/progress
+ * only ever counts the first confirmed scan.
+ */
+export async function recordScan(userId: string, pontoId: string) {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("user_scans")
+    .upsert({ user_id: userId, ponto_id: pontoId }, { onConflict: "user_id,ponto_id", ignoreDuplicates: true });
+  if (error) throw error;
 }
 
 export async function fetchFavoriteIds(userId: string): Promise<Set<string>> {

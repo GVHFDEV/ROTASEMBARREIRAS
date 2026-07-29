@@ -3,13 +3,18 @@
 import React, { useState } from "react";
 import { motion, PanInfo } from "framer-motion";
 import { Compass, Landmark, Trees, Footprints } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 interface ExploreBottomSheetProps {
   currentState: "collapsed" | "expanded";
   setCurrentState: (state: "collapsed" | "expanded") => void;
+  hideOnDesktop?: boolean;
 }
 
-export default function ExploreBottomSheet({ currentState, setCurrentState }: ExploreBottomSheetProps) {
+export default function ExploreBottomSheet({ currentState, setCurrentState, hideOnDesktop }: ExploreBottomSheetProps) {
+  const { preferences } = useAuth();
+  const reduceMotion = preferences?.reduce_motion_enabled ?? false;
+
   const handleDragEnd = (event: any, info: PanInfo) => {
     // Dragging up (negative y offset/velocity) expands the sheet
     if (info.offset.y < -60 || info.velocity.y < -150) {
@@ -47,13 +52,13 @@ export default function ExploreBottomSheet({ currentState, setCurrentState }: Ex
     exit: {
       y: "100%",
       opacity: 0,
-      transition: { duration: 0.25 },
+      transition: { duration: reduceMotion ? 0 : 0.25 },
     },
   };
 
   return (
     <motion.div
-      drag="y"
+      drag={reduceMotion ? false : "y"}
       dragConstraints={{ top: 0, bottom: 0 }}
       dragElastic={0.15}
       onDragEnd={handleDragEnd}
@@ -61,8 +66,8 @@ export default function ExploreBottomSheet({ currentState, setCurrentState }: Ex
       animate={currentState}
       exit="exit"
       variants={variants}
-      transition={{ type: "spring", stiffness: 280, damping: 28 }}
-      className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-150 rounded-t-[32px] shadow-[0_-12px_32px_rgba(0,0,0,0.08)] flex flex-col overflow-hidden select-none"
+      transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 280, damping: 28 }}
+      className={`absolute bottom-0 left-0 right-0 bg-white border-t border-gray-150 rounded-t-[32px] shadow-[0_-12px_32px_rgba(0,0,0,0.08)] flex flex-col overflow-hidden select-none lg:bottom-6 lg:left-4 lg:right-auto lg:w-[380px] lg:rounded-3xl lg:shadow-2xl lg:border${hideOnDesktop ? " lg:hidden" : ""}`}
     >
       {/* Drag Handle & Header */}
       <div 
