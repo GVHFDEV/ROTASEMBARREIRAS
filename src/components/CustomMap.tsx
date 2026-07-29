@@ -87,7 +87,7 @@ export default function CustomMap({
     points.forEach((point) => {
       const isSelected = selectedPoint?.id === point.id;
 
-      // Custom DOM Icon matching the orange brand design system exactly with dynamic size
+      // Custom DOM icon matching the orange brand design system exactly with dynamic size
       const customIcon = L.divIcon({
         className: "custom-leaflet-marker",
         html: `

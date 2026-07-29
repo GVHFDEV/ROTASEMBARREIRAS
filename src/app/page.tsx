@@ -132,7 +132,10 @@ export default function App() {
 
     fetchTouristPoints()
       .then(setPoints)
-      .catch(() => setPoints([]));
+      .catch((e) => {
+        console.warn("Pontos turísticos indisponíveis (mostrando mapa vazio):", e);
+        setPoints([]);
+      });
 
     fetchSearchHistory(user.id)
       .then(setSearchedPoints)
@@ -676,6 +679,7 @@ export default function App() {
         <AnimatePresence>
           {activeDetailsPoint && (
             <PointDetails
+              key={activeDetailsPoint.id}
               point={activeDetailsPoint}
               onBack={() => setActiveDetailsPoint(null)}
               voiceActive={voiceActive}

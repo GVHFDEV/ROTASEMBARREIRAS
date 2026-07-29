@@ -91,3 +91,21 @@ export interface Profile {
   avatar_url: string | null;
   created_at: string;
 }
+
+/** Community condition report for a point. Append-only; "active" condition is
+ * computed at query time: problem count > ok count within the last 14 days. */
+export interface RelatoRow {
+  id: string;
+  ponto_id: string;
+  user_id: string | null; // null for anonymous guests
+  guest_id: string | null; // localStorage guest id when anonymous
+  tipo: "ok" | "problema";
+  texto: string | null;
+  criado_em: string;
+}
+
+/** Relato joined with the reporter's public profile (name + avatar). */
+export interface RelatoWithProfile extends RelatoRow {
+  reporter_name: string; // profile.full_name, or "Visitante" when anonymous
+  reporter_avatar: string | null; // profile.avatar_url, or null
+}

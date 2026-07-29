@@ -179,6 +179,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     await supabase.auth.signOut();
+    // Clear points cache so a different user doesn't inherit the previous
+    // user's cached condition state (points + relatos aggregation).
+    if (typeof window !== "undefined") {
+      try { localStorage.removeItem("rotas_points_cache"); } catch {}
+    }
     // Re-create anonymous session so the app immediately continues working
     const { data } = await supabase.auth.signInAnonymously();
     if (data.session) {

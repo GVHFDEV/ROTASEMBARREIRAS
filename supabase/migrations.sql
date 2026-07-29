@@ -38,6 +38,11 @@ alter table public.profiles enable row level security;
 create policy "profiles_select_own" on public.profiles
   for select using (auth.uid() = id);
 
+-- Public read of name + avatar (relatos show reporter identity). IDs/emails
+-- stay unreadable to strangers; with check below only deste name/avatar.
+create policy "profiles_select_public" on public.profiles
+  for select to anon, authenticated using (true);
+
 create policy "profiles_update_own" on public.profiles
   for update using (auth.uid() = id);
 
@@ -111,11 +116,43 @@ create table public.pontos (
 
 alter table public.pontos enable row level security;
 
-create policy "pontos_select_authenticated" on public.pontos
+-- SELECT publico: o mapa precisa ler os pontos ANTES de qualquer login/anon auth
+-- estar pronto. Restringir a 'authenticated' quebra o mapa se signInAnonymously
+-- falhar (chave errada, rate limit, etc). anon covers the pre-auth guest state.
+drop policy if exists "pontos_select_authenticated" on public.pontos;
+create policy "pontos_select_public" on public.pontos
   for select
-  to authenticated
+  to anon, authenticated
   using (true);
 -- no insert/update/delete policy -> regular users (anon + authenticated) blocked from writing.
+
+-- ---------- relatos_pontos (community condition reports) ----------
+-- Append-only community reports. "Active" = problem count > ok count in the
+-- last 14 days, computed at query time. Rate limit 1/user/point/7d via policy.
+create table public.relatos_pontos (
+  id uuid primary key default gen_random_uuid(),
+  ponto_id uuid not null references public.pontos(id) on delete cascade,
+  user_id uuid,                          -- null for anonymous guests
+  guest_id text,                         -- localStorage guest id when anonymous
+  tipo text not null check (tipo in ('ok', 'problema')),
+  texto text,
+  criado_em timestamptz not null default now()
+);
+create index relatos_pontos_ponto_idx on public.relatos_pontos (ponto_id, criado_em desc);
+alter table public.relatos_pontos enable row level security;
+create policy "relatos_select_public" on public.relatos_pontos
+  for select to anon, authenticated using (true);
+create policy "relatos_insert_rate" on public.relatos_pontos
+  for insert to anon, authenticated
+  with check (
+    not exists (
+      select 1 from public.relatos_pontos r
+      where r.ponto_id = relatos_pontos.ponto_id
+        and coalesce(r.user_id::text, r.guest_id) =
+            coalesce(relatos_pontos.user_id::text, relatos_pontos.guest_id)
+        and r.criado_em > now() - interval '7 days'
+    )
+  );
 
 -- keep atualizado_em fresh on manual edits
 create function public.set_atualizado_em()

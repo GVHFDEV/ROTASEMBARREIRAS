@@ -30,4 +30,17 @@ export interface TouristPoint {
   audioUrl: string | null;
   audioDescriptionUrl: string | null;
   librasVideoUrl: string | null;
+  /** ISO timestamp of when the cadastro row was last updated (public.pontos
+   * atualizado_em). Shown as a small "updated on" caption under the
+   * accessibility cards. */
+  updatedAt: string | null;
+  /** Real-time community condition. Present only when computed (post
+   * aggregation of relatos_pontos from the last 14 days). `active` means
+   * problem reports outnumber ok reports — the discrete indicator is shown
+   * only in that case. */
+  condition?: {
+    active: boolean;
+    problemCount: number;
+    okCount: number;
+  };
 }
