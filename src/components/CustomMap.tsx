@@ -50,8 +50,8 @@ export default function CustomMap({
       attributionControl: false,
     });
 
-    // Premium clean tile layer: CartoDB Positron
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    // Premium clean tile layer: CartoDB Positron with API key
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_28p1_1_9a3f8de771e704501a962e61", {
       maxZoom: 19,
     }).addTo(map);
 

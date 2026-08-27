@@ -36,12 +36,13 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
+      suppressHydrationWarning
       className={`${plusJakartaSans.variable} h-full select-none antialiased`}
     >
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
-      <body className="min-h-full flex flex-col bg-bg-app text-text-main">
+      <body suppressHydrationWarning className="min-h-full flex flex-col bg-bg-app text-text-main">
         <AuthProvider>
           {children}
           <VLibrasProvider />

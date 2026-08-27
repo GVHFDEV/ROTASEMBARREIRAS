@@ -485,97 +485,67 @@ export default function App() {
             />
           </div>
 
-          {/* Mobile Fullscreen Tab Overlay with original smooth transitions */}
+          {/* Mobile Fullscreen Tab Overlay (Instant switching without page transitions) */}
           <div className="block lg:hidden absolute inset-0 z-40 pointer-events-none">
-            <AnimatePresence mode="wait">
-              {activeTab === "home" ? (
-                <motion.div
-                  key="home-tab"
-                  initial={reduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={reduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
-                  transition={{ duration: reduceMotion ? 0 : 0.2 }}
-                  className="w-full h-full pointer-events-none"
+            {activeTab === "home" ? (
+              <div className="w-full h-full pointer-events-none" />
+            ) : activeTab === "trails" ? (
+              <div className="absolute inset-0 z-40 bg-bg-app overflow-y-auto no-scrollbar pointer-events-auto">
+                <TrailsView
+                  points={points}
+                  onSelectPointFromTrail={(point) => {
+                    setActiveTab("home");
+                    handleSelectPointFromMapOrSearch(point);
+                  }}
+                  onOpenScanner={() => {
+                    setScanOrigin("trail");
+                    setIsScannerOpen(true);
+                  }}
+                  refreshKey={trailsRefreshKey}
+                  autoOpenCity={voiceRequestedCity}
                 />
-              ) : activeTab === "trails" ? (
-                <motion.div
-                  key="trails-tab"
-                  initial={reduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={reduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
-                  transition={{ duration: reduceMotion ? 0 : 0.2 }}
-                  className="absolute inset-0 z-40 bg-bg-app overflow-y-auto no-scrollbar pointer-events-auto"
-                >
-                  <TrailsView
-                    points={points}
-                    onSelectPointFromTrail={(point) => {
-                      setActiveTab("home");
-                      handleSelectPointFromMapOrSearch(point);
-                    }}
-                    onOpenScanner={() => {
-                      setScanOrigin("trail");
-                      setIsScannerOpen(true);
-                    }}
-                    refreshKey={trailsRefreshKey}
-                    autoOpenCity={voiceRequestedCity}
-                  />
-                </motion.div>
-              ) : activeTab === "voice" ? (
-                <motion.div
-                  key="voice-tab"
-                  initial={reduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={reduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
-                  transition={{ duration: reduceMotion ? 0 : 0.2 }}
-                  className="absolute inset-0 z-40 bg-bg-app overflow-y-auto overflow-x-hidden no-scrollbar pointer-events-auto"
-                >
-                  <VoiceView
-                    userId={user?.id || ""}
-                    points={points}
-                    searchedPoints={searchedPoints}
-                    userLocation={userLocation}
-                    goToPoint={(point) => {
-                      setActiveTab("home");
-                      handleSelectPointFromMapOrSearch(point);
-                    }}
-                    goToTrailsForCity={(city) => {
-                      setVoiceRequestedCity(city);
-                      setActiveTab("trails");
-                    }}
-                    goToTrails={() => {
-                      setVoiceRequestedCity(null);
-                      setActiveTab("trails");
-                    }}
-                    goToMap={() => setActiveTab("home")}
-                    goToProfile={() => setActiveTab("profile")}
-                    openScanner={() => {
-                      setScanOrigin("map");
-                      setIsScannerOpen(true);
-                    }}
-                    setHighContrast={handleSetHighContrast}
-                    setVLibras={handleSetVLibrasActive}
-                    setVoiceReading={handleSetVoiceActive}
-                    setReduceMotion={handleSetReduceMotion}
-                    increaseFontScale={handleIncreaseFontScale}
-                    decreaseFontScale={handleDecreaseFontScale}
-                  />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="profile-tab"
-                  initial={reduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={reduceMotion ? { opacity: 1, x: 0 } : { opacity: 0, x: -20 }}
-                  transition={{ duration: reduceMotion ? 0 : 0.2 }}
-                  className="absolute inset-0 z-40 bg-bg-app overflow-y-auto no-scrollbar pointer-events-auto"
-                >
-                  <ProfileView
-                    searchedPoints={searchedPoints}
-                    onSelectPoint={(point) => setActiveDetailsPoint(point)}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
+              </div>
+            ) : activeTab === "voice" ? (
+              <div className="absolute inset-0 z-40 bg-bg-app overflow-y-auto overflow-x-hidden no-scrollbar pointer-events-auto">
+                <VoiceView
+                  userId={user?.id || ""}
+                  points={points}
+                  searchedPoints={searchedPoints}
+                  userLocation={userLocation}
+                  goToPoint={(point) => {
+                    setActiveTab("home");
+                    handleSelectPointFromMapOrSearch(point);
+                  }}
+                  goToTrailsForCity={(city) => {
+                    setVoiceRequestedCity(city);
+                    setActiveTab("trails");
+                  }}
+                  goToTrails={() => {
+                    setVoiceRequestedCity(null);
+                    setActiveTab("trails");
+                  }}
+                  goToMap={() => setActiveTab("home")}
+                  goToProfile={() => setActiveTab("profile")}
+                  openScanner={() => {
+                    setScanOrigin("map");
+                    setIsScannerOpen(true);
+                  }}
+                  setHighContrast={handleSetHighContrast}
+                  setVLibras={handleSetVLibrasActive}
+                  setVoiceReading={handleSetVoiceActive}
+                  setReduceMotion={handleSetReduceMotion}
+                  increaseFontScale={handleIncreaseFontScale}
+                  decreaseFontScale={handleDecreaseFontScale}
+                />
+              </div>
+            ) : (
+              <div className="absolute inset-0 z-40 bg-bg-app overflow-y-auto no-scrollbar pointer-events-auto">
+                <ProfileView
+                  searchedPoints={searchedPoints}
+                  onSelectPoint={(point) => setActiveDetailsPoint(point)}
+                />
+              </div>
+            )}
           </div>
         </div>
 

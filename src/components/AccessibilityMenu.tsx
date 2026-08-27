@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Accessibility,
   Contrast,
-  Languages,
   Volume2,
   Type,
   ArrowLeft,
@@ -18,8 +17,8 @@ interface AccessibilityMenuProps {
   setIsHighContrast: (v: boolean) => void;
   fontScale: "normal" | "lg" | "xl";
   setFontScale: (scale: "normal" | "lg" | "xl") => void;
-  vLibrasActive: boolean;
-  setVLibrasActive: (v: boolean) => void;
+  vLibrasActive?: boolean;
+  setVLibrasActive?: (v: boolean) => void;
   voiceActive: boolean;
   setVoiceActive: (v: boolean) => void;
   reduceMotionActive: boolean;
@@ -31,8 +30,6 @@ export default function AccessibilityMenu({
   setIsHighContrast,
   fontScale,
   setFontScale,
-  vLibrasActive,
-  setVLibrasActive,
   voiceActive,
   setVoiceActive,
   reduceMotionActive,
@@ -110,45 +107,7 @@ export default function AccessibilityMenu({
             {/* Scrollable Content Body */}
             <div className="flex-1 overflow-y-auto no-scrollbar p-6 flex flex-col gap-5">
               
-              {/* Card 1: VLibras */}
-              <div className={`rounded-3xl p-5 flex flex-col gap-4 ${cardBg}`}>
-                <div className="flex items-start gap-3.5 min-w-0">
-                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${iconBoxBg}`}>
-                    <Languages className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h3 className="font-black text-base leading-snug">VLibras (Gov.br)</h3>
-                    <p className="text-xs text-text-secondary font-medium mt-1 leading-relaxed">
-                      Exibe o assistente virtual 3D oficial do Governo Federal para tradução automática do conteúdo em Língua Brasileira de Sinais.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100/80">
-                  <span className="text-xs font-bold text-text-secondary">
-                    Status: <strong className={vLibrasActive ? "text-brand" : ""}>{vLibrasActive ? "Ativado" : "Desativado"}</strong>
-                  </span>
-
-                  {/* Switch Toggle */}
-                  <button
-                    data-active={vLibrasActive}
-                    onClick={() => setVLibrasActive(!vLibrasActive)}
-                    className={`accessibility-toggle-track w-14 h-8 rounded-full relative transition-colors duration-200 cursor-pointer flex-shrink-0 p-1 ${
-                      vLibrasActive ? buttonActiveBg : buttonInactiveBg
-                    }`}
-                    aria-label="Alternar VLibras"
-                  >
-                    <motion.div
-                      layout
-                      className="accessibility-toggle-thumb w-6 h-6 rounded-full shadow-md bg-white"
-                      animate={{ x: vLibrasActive ? 24 : 0 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              {/* Card 2: Alto Contraste */}
+              {/* Card 1: Alto Contraste */}
               <div className={`rounded-3xl p-5 flex flex-col gap-4 ${cardBg}`}>
                 <div className="flex items-start gap-3.5 min-w-0">
                   <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${iconBoxBg}`}>
@@ -186,7 +145,7 @@ export default function AccessibilityMenu({
                 </div>
               </div>
 
-              {/* Card 3: Tamanho de Fonte */}
+              {/* Card 2: Tamanho de Fonte */}
               <div className={`rounded-3xl p-5 flex flex-col gap-4 ${cardBg}`}>
                 <div className="flex items-start gap-3.5 min-w-0">
                   <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${iconBoxBg}`}>
@@ -229,7 +188,7 @@ export default function AccessibilityMenu({
                 </div>
               </div>
 
-              {/* Card 4: Leitura em Voz Alta */}
+              {/* Card 3: Leitura em Voz Alta */}
               <div className={`rounded-3xl p-5 flex flex-col gap-4 ${cardBg}`}>
                 <div className="flex items-start gap-3.5 min-w-0">
                   <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${iconBoxBg}`}>
@@ -267,7 +226,7 @@ export default function AccessibilityMenu({
                 </div>
               </div>
 
-              {/* Card 5: Reduzir Movimento */}
+              {/* Card 4: Reduzir Movimento */}
               <div className={`rounded-3xl p-5 flex flex-col gap-4 ${cardBg}`}>
                 <div className="flex items-start gap-3.5 min-w-0">
                   <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${iconBoxBg}`}>
