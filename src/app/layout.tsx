@@ -14,6 +14,14 @@ export const metadata: Metadata = {
   title: "Rota sem Barreiras | Turismo Acessível GV",
   description: "Protótipo de turismo acessível e inclusão cultural de Governador Valadares (MG) - Parceria Carnelian & ONG UAI",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/logorotas.ico" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -41,6 +49,7 @@ export default function RootLayout({
     >
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="shortcut icon" href="/favicon.ico" />
       </head>
       <body suppressHydrationWarning className="min-h-full flex flex-col bg-bg-app text-text-main">
         <AuthProvider>

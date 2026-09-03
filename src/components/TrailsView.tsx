@@ -154,7 +154,7 @@ export default function TrailsView({ points, onSelectPointFromTrail, onOpenScann
     : "bg-white border border-gray-100 shadow-sm text-text-main";
 
   return (
-    <div className={`w-full min-h-full pb-28 pt-[calc(env(safe-area-inset-top)+20px)] px-6 max-w-md mx-auto flex flex-col gap-6 ${pageBg} lg:max-w-4xl lg:mx-auto lg:py-8 lg:px-8`}>
+    <div className={`w-full min-h-full pb-28 pt-[calc(env(safe-area-inset-top)+20px)] px-6 max-w-md md:max-w-2xl mx-auto flex flex-col gap-6 ${pageBg} xl:max-w-4xl xl:mx-auto xl:py-8 xl:px-8`}>
       
       {/* ================================================================
           SCENARIO 1: LIST OF TRAILS (CLEAN VERSION)

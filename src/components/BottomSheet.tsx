@@ -27,7 +27,7 @@ export default function BottomSheet({ point, onClose, onViewDetails }: BottomShe
             exit={reduceMotion ? { opacity: 0.3 } : { opacity: 0 }}
             transition={reduceMotion ? { duration: 0 } : undefined}
             onClick={onClose}
-            className="absolute inset-0 bg-black z-30 pointer-events-auto lg:hidden"
+            className="absolute inset-0 bg-black z-30 pointer-events-auto xl:hidden"
           />
 
           {/* Bottom Sheet Card / Desktop Side Sheet — hidden on desktop (pin click goes straight to PointDetails) */}
@@ -36,7 +36,7 @@ export default function BottomSheet({ point, onClose, onViewDetails }: BottomShe
             animate={{ y: 0 }}
             exit={reduceMotion ? { y: 0 } : { y: "100%" }}
             transition={reduceMotion ? { duration: 0 } : { type: "spring", damping: 25, stiffness: 220 }}
-            className="absolute bottom-0 left-0 right-0 z-40 bg-white rounded-t-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] border-t border-gray-100 w-full overflow-hidden pb-8 lg:hidden"
+            className="absolute bottom-0 left-0 right-0 z-40 bg-white rounded-t-[32px] shadow-[0_-8px_30px_rgba(0,0,0,0.08)] border-t border-gray-100 w-full overflow-hidden pb-8 xl:hidden"
           >
             {/* Handle Bar */}
             <div className="flex justify-center py-4">
@@ -44,7 +44,7 @@ export default function BottomSheet({ point, onClose, onViewDetails }: BottomShe
             </div>
 
             {/* Content */}
-            <div className="px-6">
+            <div className="px-6 md:px-10">
               {/* Header */}
               <div className="flex justify-between items-start gap-4">
                 <div>
@@ -73,7 +73,7 @@ export default function BottomSheet({ point, onClose, onViewDetails }: BottomShe
                 {point.accessibility.wheelchair && (
                   <span className="flex items-center gap-2 text-xs text-brand bg-brand-light px-4 py-2 rounded-full font-bold">
                     <Accessibility className="w-4 h-4" />
-                    Acessível
+                    Rampa
                   </span>
                 )}
                 {point.accessibility.audio && (

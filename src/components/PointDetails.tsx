@@ -22,7 +22,7 @@ function SkeletonBlock({ className }: { className: string }) {
 
 function PointDetailsSkeleton({ onBack }: { onBack: () => void }) {
   return (
-    <div className="absolute inset-0 bg-bg-app z-50 overflow-hidden flex flex-col pb-24 lg:top-0 lg:left-0 lg:bottom-0 lg:right-auto lg:w-[390px] lg:h-full lg:rounded-none lg:shadow-2xl lg:border-r lg:border-gray-200 lg:pb-6">
+    <div className="absolute inset-0 bg-bg-app z-50 overflow-hidden flex flex-col pb-24 xl:top-0 xl:left-0 xl:bottom-0 xl:right-auto xl:w-[390px] xl:h-full xl:rounded-none xl:shadow-2xl xl:border-r xl:border-gray-200 xl:pb-6">
       <div className="relative w-full h-80 flex-shrink-0 bg-gray-200 animate-pulse">
         <button
           onClick={onBack}
@@ -32,7 +32,7 @@ function PointDetailsSkeleton({ onBack }: { onBack: () => void }) {
           <ArrowLeft className="w-6 h-6 stroke-[2.8]" />
         </button>
       </div>
-      <div className="px-6 py-8 flex flex-col gap-8 max-w-md mx-auto w-full">
+      <div className="px-6 py-8 flex flex-col gap-8 max-w-md md:max-w-2xl mx-auto w-full">
         <SkeletonBlock className="h-24 w-full" />
         <SkeletonBlock className="h-48 w-full" />
         <SkeletonBlock className="h-64 w-full" />
@@ -219,7 +219,7 @@ export default function PointDetails({ point, onBack, voiceActive }: PointDetail
       animate={{ x: 0 }}
       exit={reduceMotion ? { x: 0 } : { x: slideFrom }}
       transition={reduceMotion ? { duration: 0 } : { type: "spring", damping: 28, stiffness: 220 }}
-      className="absolute inset-0 bg-bg-app z-[65] overflow-y-auto no-scrollbar flex flex-col pb-24 lg:top-0 lg:left-0 lg:bottom-0 lg:right-auto lg:w-[390px] lg:h-full lg:rounded-none lg:shadow-2xl lg:border-r lg:border-gray-200 lg:pb-6"
+      className="absolute inset-0 bg-bg-app z-[65] overflow-y-auto no-scrollbar flex flex-col pb-24 xl:top-0 xl:left-0 xl:bottom-0 xl:right-auto xl:w-[390px] xl:h-full xl:rounded-none xl:shadow-2xl xl:border-r xl:border-gray-200 xl:pb-6"
     >
       {/* Top Banner Image */}
       <div className="relative w-full h-80 flex-shrink-0 bg-zinc-800">
@@ -258,7 +258,7 @@ export default function PointDetails({ point, onBack, voiceActive }: PointDetail
       </div>
 
       {/* Details Container - Increased spacing and text sizes */}
-      <div className="px-6 py-8 flex flex-col gap-8 max-w-md mx-auto w-full">
+      <div className="px-6 py-8 flex flex-col gap-8 max-w-md md:max-w-2xl mx-auto w-full">
         {/* Address Card - Larger */}
         <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-md flex items-start gap-4">
           <MapPin className="w-6 h-6 text-brand mt-0.5 flex-shrink-0" />
@@ -633,7 +633,7 @@ export default function PointDetails({ point, onBack, voiceActive }: PointDetail
           auto-starts; user must tap play. Fixed above the bottom safe area
           so it stays reachable while scrolling long detail content. */}
       {voiceActive && (
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-4 pointer-events-none">
+      <div className="fixed bottom-0 left-0 right-0 max-w-md md:max-w-2xl mx-auto px-6 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-4 pointer-events-none xl:left-0 xl:right-auto xl:w-[390px] xl:max-w-none">
         <div className="bg-white/95 backdrop-blur-md border border-gray-150 shadow-xl rounded-full px-4 py-3 flex items-center gap-2 pointer-events-auto">
           <button
             onClick={handleTogglePlayPause}

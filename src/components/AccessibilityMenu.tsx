@@ -60,7 +60,7 @@ export default function AccessibilityMenu({
       {/* Floating Accessibility Circle Button - Fixed on Right Side */}
       <button
         onClick={() => setIsOpen(true)}
-        className={`absolute right-4 top-[45%] -translate-y-1/2 z-[60] w-13 h-13 rounded-full shadow-2xl flex items-center justify-center transition-all active:scale-90 hover:scale-105 cursor-pointer border lg:top-4 lg:right-4 lg:translate-y-0 ${
+        className={`absolute right-4 top-[38%] -translate-y-1/2 z-[60] w-13 h-13 rounded-full shadow-2xl flex items-center justify-center transition-all active:scale-90 hover:scale-105 cursor-pointer border xl:top-4 xl:right-4 xl:translate-y-0 ${
           isHighContrast
             ? "bg-yellow-400 border-white text-black font-black"
             : "bg-brand border-brand/10 text-white"
@@ -79,7 +79,7 @@ export default function AccessibilityMenu({
             animate={{ x: 0 }}
             exit={reduceMotionActive ? { x: 0 } : { x: "100%" }}
             transition={reduceMotionActive ? { duration: 0 } : { type: "spring", damping: 30, stiffness: 300 }}
-            className={`absolute inset-0 z-[70] flex flex-col overflow-hidden ${pageBg} lg:left-auto lg:right-0 lg:top-0 lg:bottom-0 lg:w-[380px] lg:border-l lg:border-gray-200 lg:shadow-2xl`}
+            className={`absolute inset-0 z-[70] flex flex-col overflow-hidden ${pageBg} xl:left-auto xl:right-0 xl:top-0 xl:bottom-0 xl:w-[380px] xl:border-l xl:border-gray-200 xl:shadow-2xl`}
           >
             {/* Header */}
             <div className={`px-6 pt-[calc(env(safe-area-inset-top)+20px)] pb-4 flex items-center gap-4 border-b flex-shrink-0 ${

@@ -62,8 +62,17 @@ export default function CustomMap({
       setZoom(map.getZoom());
     });
 
+    // Handle screen resize / device orientation changes (essential for tablets & responsive viewports)
+    const handleResize = () => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize();
+      }
+    };
+    window.addEventListener("resize", handleResize);
+
     // Clean up on unmount
     return () => {
+      window.removeEventListener("resize", handleResize);
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;

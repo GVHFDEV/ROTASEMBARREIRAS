@@ -67,7 +67,7 @@ export default function ExploreBottomSheet({ currentState, setCurrentState, hide
       exit="exit"
       variants={variants}
       transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 280, damping: 28 }}
-      className={`absolute bottom-0 left-0 right-0 bg-white border-t border-gray-150 rounded-t-[32px] shadow-[0_-12px_32px_rgba(0,0,0,0.08)] flex flex-col overflow-hidden select-none lg:bottom-6 lg:left-4 lg:right-auto lg:w-[380px] lg:rounded-3xl lg:shadow-2xl lg:border${hideOnDesktop ? " lg:hidden" : ""}`}
+      className={`absolute bottom-0 left-0 right-0 bg-white border-t border-gray-150 rounded-t-[32px] shadow-[0_-12px_32px_rgba(0,0,0,0.08)] flex flex-col overflow-hidden select-none md:max-w-xl md:mx-auto md:rounded-t-[32px] xl:bottom-6 xl:left-4 xl:right-auto xl:w-[380px] xl:rounded-3xl xl:shadow-2xl xl:border${hideOnDesktop ? " xl:hidden" : ""}`}
     >
       {/* Drag Handle & Header */}
       <div 

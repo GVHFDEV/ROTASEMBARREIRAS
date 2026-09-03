@@ -197,9 +197,18 @@ export default function App() {
     setVoiceRequestedCity(null);
   };
 
-  // Detect if we are on a desktop viewport (>= 1024px) — used to skip
-  // the intermediate bottom-sheet preview and go straight to details.
-  const isDesktop = typeof window !== "undefined" && window.innerWidth >= 1024;
+  // Detect if we are on a true desktop viewport (>= 1280px) — ensures
+  // tablets (portrait & landscape) receive the responsive full-screen interface.
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const checkIsDesktop = () => {
+      setIsDesktop(window.innerWidth >= 1280);
+    };
+    checkIsDesktop();
+    window.addEventListener("resize", checkIsDesktop);
+    return () => window.removeEventListener("resize", checkIsDesktop);
+  }, []);
 
   const isValidCoords = (lat: any, lng: any) =>
     typeof lat === "number" && typeof lng === "number" && !isNaN(lat) && !isNaN(lng);
@@ -275,8 +284,8 @@ export default function App() {
     : points;
 
   return (
-    <main className="w-full min-h-dvh bg-zinc-100 flex items-center justify-center font-sans antialiased">
-      <div className={`relative w-full max-w-md h-dvh md:max-h-[850px] md:rounded-[40px] md:shadow-2xl md:border-[8px] md:border-zinc-800 bg-bg-app overflow-hidden flex flex-col lg:max-w-none lg:h-screen lg:max-h-none lg:rounded-none lg:border-0 lg:shadow-none lg:flex-row transition-colors duration-250 ${
+    <main className="w-full h-dvh bg-bg-app overflow-hidden font-sans antialiased">
+      <div className={`relative w-full h-full bg-bg-app overflow-hidden flex flex-col xl:flex-row transition-colors duration-250 ${
         isHighContrast ? "theme-high-contrast" : ""
       } ${
         fontScale === "lg" ? "font-scale-lg" : fontScale === "xl" ? "font-scale-xl" : ""
@@ -285,23 +294,13 @@ export default function App() {
       }`}>
         <MotionConfig reducedMotion={reduceMotion ? "always" : "user"}>
 
-        {/* Status Bar simulation - hidden on lg: desktop */}
-        <div className="hidden md:flex lg:hidden justify-between items-center px-6 py-2 bg-white text-[10px] font-bold text-text-secondary select-none flex-shrink-0">
-          <span>1:41</span>
-          <div className="w-32 h-4.5 bg-black rounded-full absolute left-1/2 -translate-x-1/2 top-1.5" />
-          <div className="flex items-center gap-1">
-            <span>5G</span>
-            <div className="w-4 h-2.5 bg-text-secondary/70 rounded-xs" />
-          </div>
-        </div>
-
-        {/* Desktop Left Sidebar Navigation (Visible on lg: screens)
+        {/* Desktop Left Sidebar Navigation (Visible ONLY on xl: true desktop screens >= 1280px)
             Collapsed by default — shows only icons. Expand button toggles labels.
             Stays fixed at z-40 so side sheets (z-60) slide over it smoothly without DOM jump.
         */}
         <aside
-          className={`hidden lg:flex lg:flex-col lg:border-r lg:border-gray-200 lg:bg-white lg:z-40 lg:flex-shrink-0 select-none justify-between py-5 transition-all duration-300 ${
-            sidebarCollapsed ? "lg:w-16 lg:px-3" : "lg:w-56 lg:px-4"
+          className={`hidden xl:flex xl:flex-col xl:border-r xl:border-gray-200 xl:bg-white xl:z-40 xl:flex-shrink-0 select-none justify-between py-5 transition-all duration-300 ${
+            sidebarCollapsed ? "xl:w-16 xl:px-3" : "xl:w-56 xl:px-4"
           }`}
         >
           <div className="flex flex-col gap-3">
@@ -429,7 +428,7 @@ export default function App() {
                   selectedPointId={selectedPoint?.id}
                 />
 
-                <div className="absolute top-[calc(env(safe-area-inset-top)+84px)] left-0 right-0 z-40 overflow-x-auto no-scrollbar flex gap-2 px-5 py-1 lg:top-4 lg:left-[396px] lg:right-auto lg:max-w-[calc(100vw-680px)]">
+                <div className="absolute top-[calc(env(safe-area-inset-top)+84px)] left-0 right-0 z-40 overflow-x-auto no-scrollbar flex gap-2 px-4 md:px-6 py-1 justify-start xl:top-4 xl:left-[400px] xl:right-auto xl:max-w-[calc(100vw-680px)]">
                   {CATEGORIES.map((cat) => {
                     const isSelected =
                       cat === "Todos" ? selectedCategory === null : selectedCategory === cat;
@@ -461,22 +460,14 @@ export default function App() {
               reduceMotion={reduceMotion}
             />
 
-            <AnimatePresence>
-              {exploreSheetState === "collapsed" && (
-                <motion.button
-                  key="recenter-btn"
-                  initial={reduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={reduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.8 }}
-                  transition={{ duration: reduceMotion ? 0 : 0.2 }}
-                  onClick={handleRecenter}
-                  className="absolute bottom-[106px] right-5 z-40 w-13 h-13 rounded-full bg-white text-brand shadow-xl border border-gray-100/50 flex items-center justify-center hover:bg-gray-50 transition-all active:scale-90 lg:bottom-6 lg:right-6 lg:w-12 lg:h-12"
-                  title="Centralizar na minha localização"
-                >
-                  <Navigation className="w-6 h-6 stroke-[2.3]" />
-                </motion.button>
-              )}
-            </AnimatePresence>
+            {/* Recenter Button — lowered closer to BottomNav since ExploreBottomSheet is temporarily disabled */}
+            <button
+              onClick={handleRecenter}
+              className="absolute bottom-20 right-5 z-40 w-13 h-13 rounded-full bg-white text-brand shadow-xl border border-gray-100/50 flex items-center justify-center hover:bg-gray-50 transition-all active:scale-90 xl:bottom-6 xl:right-6 xl:w-12 xl:h-12"
+              title="Centralizar na minha localização"
+            >
+              <Navigation className="w-6 h-6 stroke-[2.3]" />
+            </button>
 
             <BottomSheet
               point={selectedPoint}
@@ -485,8 +476,8 @@ export default function App() {
             />
           </div>
 
-          {/* Mobile Fullscreen Tab Overlay (Instant switching without page transitions) */}
-          <div className="block lg:hidden absolute inset-0 z-40 pointer-events-none">
+          {/* Mobile & Tablet Fullscreen Tab Overlay (Instant switching without page transitions, covers < 1280px) */}
+          <div className="block xl:hidden absolute inset-0 z-40 pointer-events-none">
             {activeTab === "home" ? (
               <div className="w-full h-full pointer-events-none" />
             ) : activeTab === "trails" ? (
@@ -551,17 +542,7 @@ export default function App() {
 
         <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
 
-        {/* Persistent Google-Maps-like Bottom Sheet — hidden on desktop due to layout conflict */}
-        <AnimatePresence>
-          {activeTab === "home" && !selectedPoint && !activeDetailsPoint && !isScannerOpen && (
-            <ExploreBottomSheet
-              key="explore-bottom-sheet"
-              currentState={exploreSheetState}
-              setCurrentState={setExploreSheetState}
-              hideOnDesktop
-            />
-          )}
-        </AnimatePresence>
+        {/* ExploreBottomSheet is temporarily disabled per user request */}
 
         {/* Desktop side sheets for Trails / Voice / Profile — slide from left, over sidebar (z-[60]) */}
         <AnimatePresence>
@@ -572,7 +553,7 @@ export default function App() {
               animate={{ x: 0 }}
               exit={reduceMotion ? { x: 0 } : { x: "-100%" }}
               transition={reduceMotion ? { duration: 0 } : { type: "spring", damping: 32, stiffness: 280 }}
-              className="hidden lg:flex lg:flex-col lg:absolute lg:inset-y-0 lg:left-0 lg:w-[390px] lg:z-[60] lg:bg-bg-app lg:border-r lg:border-gray-200 lg:shadow-2xl overflow-y-auto no-scrollbar"
+              className="hidden xl:flex xl:flex-col xl:absolute xl:inset-y-0 xl:left-0 xl:w-[390px] xl:z-[60] xl:bg-bg-app xl:border-r xl:border-gray-200 xl:shadow-2xl overflow-y-auto no-scrollbar"
             >
               {/* Clean Close X Button */}
               <button

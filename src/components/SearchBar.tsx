@@ -127,7 +127,7 @@ export default function SearchBar({
   const hasResults = pointSuggestions.length > 0 || addressSuggestions.length > 0;
 
   return (
-    <div ref={containerRef} className="absolute top-[calc(env(safe-area-inset-top)+16px)] left-5 right-5 z-50 max-w-md mx-auto lg:top-4 lg:left-4 lg:right-auto lg:w-[380px] lg:max-w-none lg:mx-0">
+    <div ref={containerRef} className="absolute top-[calc(env(safe-area-inset-top)+16px)] left-4 right-4 md:left-6 md:right-6 z-50 xl:top-4 xl:left-4 xl:right-auto xl:w-[380px] xl:max-w-none">
       {/* Taller input container (h-14) for better accessibility */}
       <div className="relative flex items-center bg-white border border-gray-150 shadow-lg rounded-full px-5 py-2 h-14 transition-all duration-200 focus-within:border-brand/50 focus-within:ring-2 focus-within:ring-brand/10">
         {/* Search Icon - larger (w-5.5) */}

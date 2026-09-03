@@ -34,7 +34,7 @@ export default function ProfileView({ searchedPoints, onSelectPoint }: ProfileVi
   const initials = displayName.slice(0, 2).toUpperCase();
 
   return (
-    <div className="w-full min-h-full bg-bg-app pb-28 pt-[calc(env(safe-area-inset-top)+20px)] px-6 max-w-md mx-auto flex flex-col gap-8 lg:max-w-3xl lg:mx-auto lg:py-8">
+    <div className="w-full min-h-full bg-bg-app pb-28 pt-[calc(env(safe-area-inset-top)+20px)] px-6 max-w-md md:max-w-2xl mx-auto flex flex-col gap-8 xl:max-w-3xl xl:mx-auto xl:py-8">
       <h2 className="text-center font-black text-xl text-text-main">Perfil do Usuário</h2>
 
       <div className="flex flex-col items-center text-center mt-2">

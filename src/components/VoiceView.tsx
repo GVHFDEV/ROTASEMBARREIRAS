@@ -482,7 +482,7 @@ function cleanAiTranscript(text: string): string {
   };
 
   return (
-    <div className={`w-full min-h-full overflow-x-hidden pb-28 pt-[calc(env(safe-area-inset-top)+20px)] px-6 max-w-md mx-auto flex flex-col justify-between gap-6 ${pageBg} lg:max-w-2xl lg:mx-auto lg:my-auto lg:p-8 lg:bg-white lg:rounded-3xl lg:shadow-xl lg:border lg:border-gray-100 lg:pb-8 lg:pt-8`}>
+    <div className={`w-full min-h-full overflow-x-hidden pb-28 pt-[calc(env(safe-area-inset-top)+20px)] px-6 max-w-md md:max-w-2xl mx-auto flex flex-col justify-between gap-6 ${pageBg} xl:max-w-2xl xl:mx-auto xl:my-auto xl:p-8 xl:bg-white xl:rounded-3xl xl:shadow-xl xl:border xl:border-gray-100 xl:pb-8 xl:pt-8`}>
       <div className="text-left flex flex-col pt-4">
         <h1 className="font-black text-2xl tracking-tight">Assistente de Voz</h1>
         <p className="text-xs font-semibold text-text-secondary mt-1 max-w-[300px] leading-relaxed">
