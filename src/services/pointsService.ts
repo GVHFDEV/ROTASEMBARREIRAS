@@ -13,6 +13,7 @@ function rowToPoint(row: PontoRow): TouristPoint {
     coords: { lat: row.latitude, lng: row.longitude },
     image: row.imagem_capa ?? "",
     gallery: row.galeria_imagens ?? [],
+    imageFolder: row.pasta_imagens ?? row.qr_code_value ?? null,
     description: row.descricao_curta ?? "",
     history: row.descricao_longa ?? "",
     accessibility: {
@@ -32,7 +33,7 @@ function rowToPoint(row: PontoRow): TouristPoint {
 }
 
 const POINTS_CACHE_KEY = "rotas_points_cache";
-const POINTS_CACHE_VERSION = 2; // bump invalidate older caches lacking field updates (updatedAt/condition)
+const POINTS_CACHE_VERSION = 4; // v4: accessibility.details shape changed from string[] to {texto,estado}[]
 const POINTS_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 export async function fetchTouristPoints(): Promise<TouristPoint[]> {
@@ -150,6 +151,85 @@ export async function toggleFavorite(userId: string, pointId: string, isFavorite
     if (error) throw error;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Cadastro interno de pontos (internal registration tool, /admin/pontos)
+// ---------------------------------------------------------------------------
+
+/** Fields the internal cadastro form can set on insert. Everything else
+ * (id, criado_em, atualizado_em) is server-generated. */
+export interface NewPontoInput {
+  nome: string;
+  categoria: string;
+  cidade: string;
+  latitude: number;
+  longitude: number;
+  endereco: string | null;
+  descricao_curta: string | null;
+  descricao_longa: string | null;
+  imagem_capa: string | null;
+  acessibilidade_rampa: boolean;
+  acessibilidade_audio: boolean;
+  acessibilidade_braille: boolean;
+  acessibilidade_libras: boolean;
+  qr_code_value: string | null;
+  pasta_imagens: string | null;
+}
+
+/** Inserts a new ponto row. Requires the `pontos_insert_authenticated` RLS
+ * policy (see migrations_pontos_insert.sql) — without it this throws a
+ * row-level security error for every caller, by design (writes are
+ * otherwise Table-Editor-only). */
+export async function createPonto(input: NewPontoInput): Promise<TouristPoint> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("pontos").insert(input).select("*").single();
+  if (error) throw error;
+  return rowToPoint(data as PontoRow);
+}
+
+// ---------------------------------------------------------------------------
+// Galeria de fotos (Storage bucket "pontos-imagens")
+// ---------------------------------------------------------------------------
+
+const PONTOS_IMAGENS_BUCKET = "pontos-imagens";
+
+/** Public URL prefix for the pontos-imagens bucket, derived from the same
+ * env var used to build the Supabase client (no separate config needed). */
+function pontosImagensPublicUrl(path: string): string {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+  return `${base}/storage/v1/object/public/${PONTOS_IMAGENS_BUCKET}/${path}`;
+}
+
+/**
+ * Lists every image file inside a point's Storage folder (bucket
+ * "pontos-imagens", folder named after the point — see
+ * docs/SUPABASE_PONTOS_SETUP.md for the folder convention). Returns public
+ * URLs, newest first is NOT guaranteed by Storage; we sort by name so
+ * uploads are stable across reloads. Non-fatal: returns [] on any error
+ * (missing folder, no bucket yet, etc) instead of throwing, since the
+ * gallery is a nice-to-have section on the point detail screen.
+ */
+export async function fetchPointGallery(folder: string): Promise<string[]> {
+  if (!folder) return [];
+  try {
+    const supabase = createClient();
+    const { data, error } = await supabase.storage.from(PONTOS_IMAGENS_BUCKET).list(folder, {
+      sortBy: { column: "name", order: "asc" },
+    });
+    if (error || !data) return [];
+    const imageExtensions = /\.(jpe?g|png|webp|gif|avif)$/i;
+    return data
+      .filter((f) => f.name && imageExtensions.test(f.name) && !f.name.startsWith("."))
+      .map((f) => pontosImagensPublicUrl(`${folder}/${f.name}`));
+  } catch {
+    return [];
+  }
+}
+
+// Uploading photos is intentionally NOT exposed here — the gallery is
+// view-only in the app. New photos are added directly to the Storage
+// bucket via the Supabase Dashboard (bypasses RLS), same workflow already
+// used for imagem_capa/galeria_imagens. See migrations_storage_pontos_imagens.sql.
 
 // ---------------------------------------------------------------------------
 // Relatos de condição (community condition reports)

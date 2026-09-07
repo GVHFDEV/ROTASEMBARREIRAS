@@ -95,13 +95,25 @@ create table public.pontos (
   -- cover image + gallery (Storage public URLs)
   imagem_capa text,
   galeria_imagens text[] not null default '{}',
+  -- Storage folder slug under the pontos-imagens bucket (e.g. "ibituruna"),
+  -- used by the in-app photo gallery to list ALL images for this point
+  -- (supabase.storage.from('pontos-imagens').list(pasta_imagens)). Falls
+  -- back to qr_code_value when null. See migrations_galeria_pasta.sql.
+  pasta_imagens text,
 
-  -- accessibility flags
+  -- accessibility summary flags — plain booleans (chip shown orange when
+  -- true, dull gray when false in the app; no 3rd state at this level).
   acessibilidade_rampa boolean not null default false,
   acessibilidade_audio boolean not null default false,
   acessibilidade_braille boolean not null default false,
   acessibilidade_libras boolean not null default false,
-  acessibilidade_detalhes text[] not null default '{}',
+  -- Detail bullet list under the accessibility card. jsonb array of
+  -- {"texto": string, "estado": "tem" | "nao_tem" | "nao_verificado"} —
+  -- THIS is where the 3-state rating lives (per detail item, not on the
+  -- summary flags above). "nao_verificado" is the default, distinct from
+  -- an explicit "no". See supabase/migrations_acessibilidade_estados.sql
+  -- for the migration that converts this from text[] on an existing db.
+  acessibilidade_detalhes jsonb not null default '[]'::jsonb,
 
   -- accessibility media (Storage public URLs)
   audio_url text,
@@ -283,7 +295,7 @@ end $$;
 --   'https://<project>.supabase.co/storage/v1/object/public/pontos-imagens/ibituruna/capa.jpg',
 --   array['https://.../galeria1.jpg', 'https://.../galeria2.jpg'],
 --   true, true, true, false,
---   array['Rampa de acesso ao mirante', 'Banheiros adaptados'],
+--   '[{"texto": "Rampa de acesso ao mirante", "estado": "tem"}, {"texto": "Banheiros adaptados", "estado": "nao_verificado"}]'::jsonb,
 --   'https://.../audio.mp3', 'https://.../audiodescricao.mp3', null,
 --   'rota-ibituruna'
 -- );

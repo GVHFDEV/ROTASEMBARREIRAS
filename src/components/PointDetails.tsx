@@ -2,12 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import { TouristPoint } from "@/types/point";
-import { ArrowLeft, MapPin, Accessibility, Volume2, Bookmark, Check, ShieldCheck, Headphones, Video, Images, Play, Pause, Square, Gauge, AlertTriangle, ChevronDown, ChevronUp, Flag, Loader2 } from "lucide-react";
+import { ArrowLeft, MapPin, Accessibility, Volume2, Bookmark, Check, X, HelpCircle, ShieldCheck, Headphones, Video, Images, Play, Pause, Square, Gauge, AlertTriangle, ChevronDown, ChevronUp, Flag, Loader2, Star, Navigation } from "lucide-react";
+import type { AccessibilityDetail } from "@/types/database";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSpeechReader, SpeechSegment } from "@/hooks/useSpeechReader";
 import { useAuth } from "@/context/AuthContext";
-import { fetchRelatosForPoint, createRelato } from "@/services/pointsService";
+import { fetchRelatosForPoint, createRelato, fetchPointGallery } from "@/services/pointsService";
 import type { RelatoWithProfile } from "@/types/database";
+import { getSavedNavApp, saveNavApp, openNavigation, NAV_APP_LABELS, type NavApp } from "@/lib/navigation";
 
 interface PointDetailsProps {
   point: TouristPoint;
@@ -18,6 +20,88 @@ interface PointDetailsProps {
 /** Skeleton block — pulses gray, same shape as real content underneath. */
 function SkeletonBlock({ className }: { className: string }) {
   return <div className={`bg-gray-200 rounded-2xl animate-pulse ${className}`} />;
+}
+
+/**
+ * Visual complement to the "N pessoas relataram" text — fills a
+ * proportional number of 5 stars based on the share of "está tudo bem"
+ * reports among all recent reports considered. Purely additive: the text
+ * caption stays exactly as it is, this just sits alongside it for people
+ * who read pictographic/symbolic cues more easily. Uses the brand color,
+ * not a separate "rating yellow" — same rule as the accessibility chips
+ * (no colors outside the design system palette).
+ */
+function ConditionStars({ okRatio }: { okRatio: number }) {
+  const filled = Math.round(Math.max(0, Math.min(1, okRatio)) * 5);
+  return (
+    <span className="flex items-center gap-0.5" aria-hidden="true">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Star
+          key={i}
+          className={`w-3.5 h-3.5 ${i < filled ? "text-brand fill-brand" : "text-gray-200 fill-gray-200"}`}
+        />
+      ))}
+    </span>
+  );
+}
+
+/**
+ * Accessibility summary chip (rampa/áudio/braille/libras) — plain boolean:
+ * orange/brand when the point has the feature, dull gray when it doesn't.
+ * No 3rd "unverified" state at this level — that lives in the detail
+ * bullet list below (AccessibilityDetailItem).
+ */
+function AccessibilityChip({
+  hasFeature,
+  icon: FeatureIcon,
+  label,
+}: {
+  hasFeature: boolean;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}) {
+  return (
+    <div
+      className={`flex flex-col items-center p-3 rounded-2xl border text-center transition-all ${
+        hasFeature
+          ? "border-brand-light bg-brand-light/40 text-brand font-bold"
+          : "border-gray-100 bg-gray-50 text-gray-300"
+      }`}
+    >
+      <FeatureIcon className="w-7 h-7 mb-1.5" />
+      <span className="text-[10px] font-black">{label}</span>
+    </div>
+  );
+}
+
+/**
+ * One item in the accessibility detail bullet list, with its own 3-state
+ * confirmation: "tem" (check, brand color), "nao_tem" (X, also brand
+ * color — no red, keeps the app's single-accent palette), "nao_verificado"
+ * (question mark badge, neutral gray so it visually reads as "unconfirmed"
+ * rather than a settled answer either way).
+ */
+function AccessibilityDetailItem({ detail }: { detail: AccessibilityDetail }) {
+  // "tem" = confirmed, brand color. "nao_tem" and "nao_verificado" both
+  // read as dull/disabled gray — "nao_tem" additionally uses an X instead
+  // of a "?" to distinguish a confirmed absence from an unconfirmed one.
+  const isDull = detail.estado !== "tem";
+  const StatusIcon = detail.estado === "tem" ? Check : detail.estado === "nao_tem" ? X : HelpCircle;
+
+  return (
+    <li className="flex items-start gap-3.5">
+      <span
+        className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm ${
+          isDull ? "bg-gray-200 text-gray-400" : "bg-brand-light text-brand"
+        }`}
+      >
+        <StatusIcon className="w-4 h-4 stroke-[3]" />
+      </span>
+      <span className={`text-base leading-relaxed font-semibold ${isDull ? "text-gray-400" : "text-text-secondary"}`}>
+        {detail.texto}
+      </span>
+    </li>
+  );
 }
 
 function PointDetailsSkeleton({ onBack }: { onBack: () => void }) {
@@ -59,7 +143,7 @@ export default function PointDetails({ point, onBack, voiceActive }: PointDetail
     { id: "address", text: point.address ? `Endereço: ${point.address}` : "" },
     {
       id: "accessibility",
-      text: point.accessibility.details.length > 0 ? point.accessibility.details.join(". ") : "",
+      text: point.accessibility.details.length > 0 ? point.accessibility.details.map((d) => d.texto).join(". ") : "",
     },
     { id: "history", text: point.history },
   ].filter((s) => s.text.trim());
@@ -116,6 +200,13 @@ export default function PointDetails({ point, onBack, voiceActive }: PointDetail
   const [reportStatus, setReportStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [reportError, setReportError] = useState("");
 
+  // --- Photo gallery (Storage bucket pontos-imagens) — VIEW ONLY. Uploads
+  // are managed internally (admin uploads directly to the bucket via
+  // Supabase dashboard), not exposed to any in-app user. ---
+  const [galleryPhotos, setGalleryPhotos] = useState<string[]>([]);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
   // Reset ALL relato state when the point changes. Without this, opening
   // point A → expanding reports → closing → opening point B shows A's list
   // (stale `relatos` / `relatosOpen` / counts from the previous point).
@@ -125,7 +216,32 @@ export default function PointDetails({ point, onBack, voiceActive }: PointDetail
     setRelatosOpen(false);
     setRelatosLoading(false);
     resetReport();
+    setGalleryPhotos(point.gallery.filter(Boolean));
+    setLightboxIndex(null);
   }, [point.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load the FULL gallery from the Storage folder (pasta_imagens / qr fallback),
+  // in addition to the curated galeria_imagens[] already seeded above.
+  // Non-fatal — errors just leave the curated list as-is.
+  useEffect(() => {
+    if (!point.imageFolder) return;
+    let cancelled = false;
+    setGalleryLoading(true);
+    fetchPointGallery(point.imageFolder)
+      .then((urls) => {
+        if (cancelled) return;
+        // Merge with the curated list (dedupe), Storage-listed photos first
+        // since that folder is the source of truth for "all photos".
+        const merged = [...new Set([...urls, ...point.gallery.filter(Boolean)])];
+        setGalleryPhotos(merged);
+      })
+      .finally(() => {
+        if (!cancelled) setGalleryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [point.id, point.imageFolder]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggleRelatos = async () => {
     if (relatosOpen) {
@@ -198,6 +314,31 @@ export default function PointDetails({ point, onBack, voiceActive }: PointDetail
     setReportStatus("idle");
     setReportError("");
   };
+  // --- "Como chegar" (directions) ---
+  // First tap: show a small inline chooser (Google Maps / Waze), matching
+  // the app's lightweight selector pattern (no heavy modal). Choice is
+  // saved to localStorage — device preference, not account data, so no
+  // Supabase write. Subsequent taps open the saved app directly.
+  const [navChooserOpen, setNavChooserOpen] = useState(false);
+  // Lazy initializer — reads localStorage once on mount without a
+  // synchronous setState-in-effect (avoids an extra render pass).
+  const [savedNavApp, setSavedNavApp] = useState<NavApp | null>(() => getSavedNavApp());
+
+  const handleDirectionsClick = () => {
+    if (savedNavApp) {
+      openNavigation(savedNavApp, point.coords.lat, point.coords.lng);
+      return;
+    }
+    setNavChooserOpen(true);
+  };
+
+  const handleChooseNavApp = (app: NavApp) => {
+    saveNavApp(app);
+    setSavedNavApp(app);
+    setNavChooserOpen(false);
+    openNavigation(app, point.coords.lat, point.coords.lng);
+  };
+
   // Detect desktop viewport to change slide direction (mobile: from right, desktop: from left)
   const [isDesktop, setIsDesktop] = useState(false);
   useEffect(() => {
@@ -271,29 +412,175 @@ export default function PointDetails({ point, onBack, voiceActive }: PointDetail
             >
               {point.address}
             </p>
+
+            {/* "Como chegar" — opens the saved nav app directly, or shows
+                the inline chooser (Google Maps / Waze) on first use. */}
+            <div className="mt-4 flex items-center gap-2">
+              <button
+                onClick={handleDirectionsClick}
+                className="flex-1 flex items-center justify-center gap-2 bg-brand hover:bg-brand-dark text-white font-bold text-sm rounded-full py-3.5 transition-colors active:scale-95"
+              >
+                <Navigation className="w-4.5 h-4.5" />
+                Como chegar
+                {savedNavApp && (
+                  <span className="text-white/80 font-semibold">· {NAV_APP_LABELS[savedNavApp]}</span>
+                )}
+              </button>
+
+              {/* Discreet way to change the saved app later, without clearing
+                  browser data or reinstalling anything. */}
+              {savedNavApp && (
+                <button
+                  onClick={() => setNavChooserOpen((v) => !v)}
+                  className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full bg-gray-100 text-text-secondary hover:bg-gray-150 hover:text-brand transition-colors active:scale-90"
+                  title="Trocar app de navegação"
+                  aria-label="Trocar app de navegação"
+                  aria-expanded={navChooserOpen}
+                >
+                  {navChooserOpen ? (
+                    <ChevronUp className="w-4.5 h-4.5" />
+                  ) : (
+                    <ChevronDown className="w-4.5 h-4.5" />
+                  )}
+                </button>
+              )}
+            </div>
+
+            {/* Inline chooser — same lightweight expand pattern used by the
+                report form / relatos list below, no heavy modal. */}
+            <AnimatePresence initial={false}>
+              {navChooserOpen && (
+                <motion.div
+                  initial={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                  animate={reduceMotion ? { opacity: 1 } : { height: "auto", opacity: 1 }}
+                  exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+                  transition={reduceMotion ? { duration: 0 } : { duration: 0.2 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <p className="text-xs font-bold text-text-secondary mb-3">
+                      Abrir rota com qual aplicativo?
+                    </p>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <button
+                        onClick={() => handleChooseNavApp("google_maps")}
+                        className={`flex flex-col items-center justify-center gap-1.5 rounded-2xl px-4 py-4 border font-bold text-sm transition-all ${
+                          savedNavApp === "google_maps"
+                            ? "bg-brand text-white border-brand"
+                            : "bg-white text-text-main border-gray-200 hover:border-brand/40"
+                        }`}
+                      >
+                        <MapPin className="w-6 h-6" strokeWidth={2.5} />
+                        <span className="leading-snug">Google Maps</span>
+                      </button>
+                      <button
+                        onClick={() => handleChooseNavApp("waze")}
+                        className={`flex flex-col items-center justify-center gap-1.5 rounded-2xl px-4 py-4 border font-bold text-sm transition-all ${
+                          savedNavApp === "waze"
+                            ? "bg-brand text-white border-brand"
+                            : "bg-white text-text-main border-gray-200 hover:border-brand/40"
+                        }`}
+                      >
+                        <Navigation className="w-6 h-6" strokeWidth={2.5} />
+                        <span className="leading-snug">Waze</span>
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
-        {/* Image Gallery - only rendered when cadastro has extra photos */}
-        {point.gallery.filter(Boolean).length > 0 && (
+        {/* Image Gallery — full Storage folder listing (pontos-imagens),
+            not just the curated galeria_imagens[]. View-only: photos are
+            managed internally via the Supabase Storage bucket, not
+            uploaded by end users. */}
+        {galleryPhotos.length > 0 && (
           <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-md">
             <h3 className="text-xl font-black text-text-main flex items-center gap-2 border-b border-gray-100 pb-4 mb-5">
               <Images className="w-6 h-6 text-brand" />
               Galeria de Fotos
             </h3>
-            <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
-              {point.gallery.filter(Boolean).map((url, index) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={index}
-                  src={url}
-                  alt={`${point.name} - foto ${index + 1}`}
-                  className="w-32 h-32 rounded-2xl object-cover flex-shrink-0 border border-gray-100"
-                />
-              ))}
-            </div>
+
+            {galleryLoading ? (
+              <div className="flex items-center gap-2 text-text-secondary text-sm font-bold py-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Carregando fotos...
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2.5">
+                {galleryPhotos.map((url, index) => (
+                  <button
+                    key={url}
+                    type="button"
+                    onClick={() => setLightboxIndex(index)}
+                    className="aspect-square rounded-2xl overflow-hidden border border-gray-100"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={url}
+                      alt={`${point.name} - foto ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
+
+        {/* Lightbox — simple full-screen viewer with prev/next, no external lib */}
+        <AnimatePresence>
+          {lightboxIndex !== null && galleryPhotos[lightboxIndex] && (
+            <motion.div
+              initial={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={reduceMotion ? { opacity: 1 } : { opacity: 0 }}
+              transition={{ duration: reduceMotion ? 0 : 0.15 }}
+              className="fixed inset-0 z-[80] bg-black/90 flex items-center justify-center"
+              onClick={() => setLightboxIndex(null)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={galleryPhotos[lightboxIndex]}
+                alt={`${point.name} - foto ${lightboxIndex + 1}`}
+                className="max-w-full max-h-full object-contain"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <button
+                onClick={() => setLightboxIndex(null)}
+                className="absolute top-[calc(env(safe-area-inset-top)+16px)] right-6 w-11 h-11 rounded-full bg-white/95 text-text-main shadow-lg flex items-center justify-center active:scale-90"
+                title="Fechar"
+              >
+                <X className="w-5 h-5 stroke-[2.8]" />
+              </button>
+              {galleryPhotos.length > 1 && (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxIndex((i) => (i === null ? null : (i - 1 + galleryPhotos.length) % galleryPhotos.length));
+                    }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/95 text-text-main shadow-lg flex items-center justify-center active:scale-90"
+                    title="Foto anterior"
+                  >
+                    <ArrowLeft className="w-5 h-5 stroke-[2.8]" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setLightboxIndex((i) => (i === null ? null : (i + 1) % galleryPhotos.length));
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/95 text-text-main shadow-lg flex items-center justify-center active:scale-90"
+                    title="Próxima foto"
+                  >
+                    <ArrowLeft className="w-5 h-5 stroke-[2.8] rotate-180" />
+                  </button>
+                </>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Accessibility Features Section - Larger and easier to read */}
         <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-md">
@@ -302,35 +589,14 @@ export default function PointDetails({ point, onBack, voiceActive }: PointDetail
             Acessibilidade no Local
           </h3>
 
-          {/* Quick Icons - Larger grid elements */}
+          {/* Quick Icons - Larger grid elements. Each chip shows a small
+              corner badge for the 3-state rating (tem / não tem / não
+              verificado) — see AccessibilityChip above. */}
           <div className="grid grid-cols-4 gap-2.5 mb-6">
-            <div className={`flex flex-col items-center p-3 rounded-2xl border text-center transition-all ${
-              point.accessibility.wheelchair ? "border-brand-light bg-brand-light/40 text-brand font-bold" : "border-gray-100 text-gray-300"
-            }`}>
-              <Accessibility className="w-7 h-7 mb-1.5" />
-              <span className="text-[10px] font-black">Rampas</span>
-            </div>
-            
-            <div className={`flex flex-col items-center p-3 rounded-2xl border text-center transition-all ${
-              point.accessibility.audio ? "border-brand-light bg-brand-light/40 text-brand font-bold" : "border-gray-100 text-gray-300"
-            }`}>
-              <Volume2 className="w-7 h-7 mb-1.5" />
-              <span className="text-[10px] font-black">Áudio</span>
-            </div>
-
-            <div className={`flex flex-col items-center p-3 rounded-2xl border text-center transition-all ${
-              point.accessibility.braille ? "border-brand-light bg-brand-light/40 text-brand font-bold" : "border-gray-100 text-gray-300"
-            }`}>
-              <ShieldCheck className="w-7 h-7 mb-1.5" />
-              <span className="text-[10px] font-black">Braille</span>
-            </div>
-
-            <div className={`flex flex-col items-center p-3 rounded-2xl border text-center transition-all ${
-              point.accessibility.libras ? "border-brand-light bg-brand-light/40 text-brand font-bold" : "border-gray-100 text-gray-300"
-            }`}>
-              <Bookmark className="w-7 h-7 mb-1.5" />
-              <span className="text-[10px] font-black">Libras</span>
-            </div>
+            <AccessibilityChip hasFeature={point.accessibility.wheelchair} icon={Accessibility} label="Rampas" />
+            <AccessibilityChip hasFeature={point.accessibility.audio} icon={Volume2} label="Áudio" />
+            <AccessibilityChip hasFeature={point.accessibility.braille} icon={ShieldCheck} label="Braille" />
+            <AccessibilityChip hasFeature={point.accessibility.libras} icon={Bookmark} label="Libras" />
           </div>
 
           {/* Last-updated caption (from public.pontos.atualizado_em) */}
@@ -352,14 +618,7 @@ export default function PointDetails({ point, onBack, voiceActive }: PointDetail
             }`}
           >
             {point.accessibility.details.map((detail, index) => (
-              <li key={index} className="flex items-start gap-3.5">
-                <span className="w-6 h-6 rounded-full bg-brand-light text-brand flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
-                  <Check className="w-4 h-4 stroke-[3]" />
-                </span>
-                <span className="text-base text-text-secondary leading-relaxed font-semibold">
-                  {detail}
-                </span>
-              </li>
+              <AccessibilityDetailItem key={index} detail={detail} />
             ))}
           </ul>
 
@@ -537,10 +796,19 @@ export default function PointDetails({ point, onBack, voiceActive }: PointDetail
             {condition && (condition.problemCount > 0 || condition.okCount > 0) ? (
               (() => {
                 const total = condition.problemCount + condition.okCount;
+                const okRatio = condition.okCount / total;
                 return (
-                  <p className="text-sm text-text-secondary font-bold">
-                    {total} {total === 1 ? "pessoa relatou" : "pessoas relataram"} nos últimos dias
-                  </p>
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <p className="text-sm text-text-secondary font-bold">
+                      {total} {total === 1 ? "pessoa relatou" : "pessoas relataram"} nos últimos dias
+                    </p>
+                    <span
+                      role="img"
+                      aria-label={`Avaliação: ${Math.round(okRatio * 5)} de 5 estrelas, baseada na proporção de relatos positivos`}
+                    >
+                      <ConditionStars okRatio={okRatio} />
+                    </span>
+                  </div>
                 );
               })()
             ) : (

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { AuthProvider } from "@/context/AuthContext";
 import VLibrasProvider from "@/components/VLibrasProvider";
 
@@ -56,6 +57,7 @@ export default function RootLayout({
           {children}
           <VLibrasProvider />
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );

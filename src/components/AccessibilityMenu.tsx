@@ -1,9 +1,9 @@
 "use client";
+"use client";
 
-import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState, useRef, useEffect } from "react";
+import { motion, AnimatePresence, useMotionValue, PanInfo } from "framer-motion";
 import {
-  Accessibility,
   Contrast,
   Volume2,
   Type,
@@ -11,6 +11,11 @@ import {
   Check,
   ZapOff,
 } from "lucide-react";
+// FaUniversalAccess = the current international "Accessible Icon"/UN
+// accessibility symbol (person with outstretched arms inside a circle),
+// from react-icons' bundled Font Awesome set — a real, maintained icon
+// library instead of a hand-drawn SVG.
+import { FaUniversalAccess } from "react-icons/fa6";
 
 interface AccessibilityMenuProps {
   isHighContrast: boolean;
@@ -24,6 +29,11 @@ interface AccessibilityMenuProps {
   reduceMotionActive: boolean;
   setReduceMotionActive: (v: boolean) => void;
 }
+
+// Persisted position storage key for the draggable accessibility button.
+const DRAG_POSITION_STORAGE_KEY = "accessibility-btn-position";
+// Approximate button footprint (w-13/h-13 = 52px) used to keep it clamped on screen.
+const BUTTON_SIZE = 52;
 
 export default function AccessibilityMenu({
   isHighContrast,
@@ -39,6 +49,58 @@ export default function AccessibilityMenu({
 
   const FONT_STEPS: Array<"normal" | "lg" | "xl"> = ["normal", "lg", "xl"];
   const safeScale = FONT_STEPS.includes(fontScale) ? fontScale : "normal";
+
+  // Draggable floating button: offsets are applied on top of the default
+  // CSS position (left-4/top-[38%] on mobile, xl:top-4/xl:right-4 on desktop).
+  const dragBoundsRef = useRef<HTMLDivElement>(null);
+  const dragX = useMotionValue(0);
+  const dragY = useMotionValue(0);
+  const wasDraggedRef = useRef(false);
+
+  // Restore a previously saved position (clamped to the current viewport
+  // in case the window was resized since it was last saved).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = window.localStorage.getItem(DRAG_POSITION_STORAGE_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved) as { x: number; y: number };
+      if (typeof parsed.x !== "number" || typeof parsed.y !== "number") return;
+      const maxX = window.innerWidth - BUTTON_SIZE;
+      const maxY = window.innerHeight - BUTTON_SIZE;
+      dragX.set(Math.min(Math.max(parsed.x, -maxX), maxX));
+      dragY.set(Math.min(Math.max(parsed.y, -maxY), maxY));
+    } catch {
+      // Ignore malformed/unavailable storage; falls back to default position.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleDragEnd = (
+    _event: MouseEvent | TouchEvent | PointerEvent,
+    info: PanInfo
+  ) => {
+    // Small movements are treated as a click/tap rather than a drag.
+    if (Math.abs(info.offset.x) > 4 || Math.abs(info.offset.y) > 4) {
+      wasDraggedRef.current = true;
+    }
+    try {
+      window.localStorage.setItem(
+        DRAG_POSITION_STORAGE_KEY,
+        JSON.stringify({ x: dragX.get(), y: dragY.get() })
+      );
+    } catch {
+      // Ignore storage failures (e.g. private browsing mode).
+    }
+  };
+
+  const handleButtonClick = () => {
+    if (wasDraggedRef.current) {
+      wasDraggedRef.current = false;
+      return;
+    }
+    setIsOpen(true);
+  };
 
   // High contrast styling overrides
   const pageBg = isHighContrast ? "bg-black text-white" : "bg-bg-app text-text-main";
@@ -57,19 +119,31 @@ export default function AccessibilityMenu({
 
   return (
     <>
-      {/* Floating Accessibility Circle Button - Fixed on Right Side */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className={`absolute right-4 top-[38%] -translate-y-1/2 z-[60] w-13 h-13 rounded-full shadow-2xl flex items-center justify-center transition-all active:scale-90 hover:scale-105 cursor-pointer border xl:top-4 xl:right-4 xl:translate-y-0 ${
-          isHighContrast
-            ? "bg-yellow-400 border-white text-black font-black"
-            : "bg-brand border-brand/10 text-white"
-        }`}
-        aria-label="Abrir Tela de Acessibilidade"
-        title="Abrir Central de Acessibilidade"
-      >
-        <Accessibility className="w-7 h-7 stroke-[2.3]" />
-      </button>
+      {/* Drag constraints container spans the whole viewport so the button
+          can be moved to and dropped at any position on screen. */}
+      <div ref={dragBoundsRef} className="absolute inset-0 pointer-events-none z-[60]">
+        {/* Floating Accessibility Circle Button - draggable, defaults to Left Side */}
+        <motion.button
+          drag
+          dragConstraints={dragBoundsRef}
+          dragMomentum={false}
+          dragElastic={reduceMotionActive ? 0 : 0.08}
+          onDragEnd={handleDragEnd}
+          style={{ x: dragX, y: dragY, transition: reduceMotionActive ? "none" : undefined }}
+          onClick={handleButtonClick}
+          className={`pointer-events-auto absolute left-4 top-[38%] -translate-y-1/2 w-13 h-13 rounded-full shadow-2xl flex items-center justify-center ${
+            reduceMotionActive ? "" : "transition-colors active:scale-90 hover:scale-105"
+          } cursor-grab active:cursor-grabbing touch-none border xl:top-4 xl:left-auto xl:right-4 xl:translate-y-0 ${
+            isHighContrast
+              ? "bg-yellow-400 border-white text-black font-black"
+              : "bg-brand border-brand/10 text-white"
+          }`}
+          aria-label="Abrir Tela de Acessibilidade. Arraste para reposicionar o botão."
+          title="Abrir Central de Acessibilidade (arraste para mover)"
+        >
+          <FaUniversalAccess className="w-7 h-7" />
+        </motion.button>
+      </div>
 
       {/* Dedicated Accessibility Screen with Slide Transition (From the side) */}
       <AnimatePresence>
@@ -98,7 +172,7 @@ export default function AccessibilityMenu({
               </button>
               <div>
                 <h1 className="font-black text-lg leading-tight flex items-center gap-2">
-                  <Accessibility className="w-5 h-5 text-brand" />
+                  <FaUniversalAccess className="w-5 h-5 text-brand" />
                   Central de Acessibilidade
                 </h1>
               </div>

@@ -1,5 +1,19 @@
 /** Mirrors Supabase schema. Keep in sync w/ migrations.sql */
 
+/** Three-state confirmation for an individual accessibility DETAIL item
+ * (public.pontos.acessibilidade_detalhes[].estado) — NOT for the 4
+ * top-level summary flags below, which stay plain booleans.
+ * "nao_verificado" is the default and is distinct from an explicit "no" —
+ * it means nobody has confirmed either way yet. See
+ * supabase/migrations_acessibilidade_estados.sql. */
+export type AccessibilityState = "tem" | "nao_tem" | "nao_verificado";
+
+/** One item in public.pontos.acessibilidade_detalhes (jsonb array). */
+export interface AccessibilityDetail {
+  texto: string;
+  estado: AccessibilityState;
+}
+
 /** Row shape of public.pontos, as returned by PostgREST. */
 export interface PontoRow {
   id: string;
@@ -12,11 +26,19 @@ export interface PontoRow {
   descricao_longa: string | null;
   imagem_capa: string | null;
   galeria_imagens: string[];
+  /** Storage folder slug under bucket pontos-imagens (e.g. "ibituruna").
+   * Used by the in-app photo gallery to list all images for this point.
+   * Null on rows created before this column existed — falls back to
+   * qr_code_value in rowToPoint(). */
+  pasta_imagens: string | null;
+  /** Summary flags — plain booleans, chip shown orange (true) or dull gray
+   * (false). No 3rd state at this level (see acessibilidade_detalhes for
+   * the 3-state rating). */
   acessibilidade_rampa: boolean;
   acessibilidade_audio: boolean;
   acessibilidade_braille: boolean;
   acessibilidade_libras: boolean;
-  acessibilidade_detalhes: string[];
+  acessibilidade_detalhes: AccessibilityDetail[];
   audio_url: string | null;
   audiodescricao_url: string | null;
   video_libras_url: string | null;

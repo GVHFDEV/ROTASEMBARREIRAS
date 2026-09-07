@@ -40,7 +40,13 @@ https://<project-ref>.supabase.co/storage/v1/object/public/pontos-imagens/ibitur
 ```
 Essa URL completa vai direto nas colunas `imagem_capa`, `galeria_imagens`, `audio_url`, `audiodescricao_url`, `video_libras_url`.
 
-## 5. Cadastrar ponto via Table Editor
+## 5. Cadastrar ponto via ferramenta interna (recomendado) ou Table Editor
+
+Existe uma ferramenta interna em `/admin/pontos` (`src/app/admin/pontos/page.tsx`) que preenche a maior parte deste formulário automaticamente: o campo de endereço usa a mesma busca Photon do app, e latitude/longitude são capturados automaticamente do resultado selecionado (sem precisar consultar o Google Maps manualmente). Requer rodar `supabase/migrations_pontos_insert.sql` (adiciona a policy de INSERT para `authenticated`) e estar logado com uma conta não-anônima.
+
+**Atenção de segurança:** essa rota não tem controle de admin/role — qualquer conta autenticada (não visitante) consegue cadastrar pontos por ela. Mantenha a URL interna/não divulgada até que um sistema de papéis (`is_admin`) seja adicionado — ver comentário no topo de `migrations_pontos_insert.sql`.
+
+Alternativa manual (sem preencher nenhum campo automaticamente):
 
 Table Editor → `pontos` → Insert row. Campos:
 
@@ -59,7 +65,7 @@ Table Editor → `pontos` → Insert row. Campos:
 | `acessibilidade_audio` | bool | true/false |
 | `acessibilidade_braille` | bool | true/false |
 | `acessibilidade_libras` | bool | true/false |
-| `acessibilidade_detalhes` | text[] | lista de frases (ex: "Rampa de acesso ao mirante") |
+| `acessibilidade_detalhes` | jsonb | array de objetos `{"texto": "...", "estado": "tem" \| "nao_tem" \| "nao_verificado"}`, ex: `[{"texto": "Rampa de acesso ao mirante", "estado": "tem"}]` |
 | `audio_url` | text | URL do áudio (opcional, deixar null se não tiver) |
 | `audiodescricao_url` | text | URL da audiodescrição (opcional) |
 | `video_libras_url` | text | URL do vídeo em Libras (opcional) |

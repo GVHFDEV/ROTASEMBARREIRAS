@@ -104,7 +104,9 @@ function pointSummary(p: TouristPoint): Record<string, unknown> {
       audio: p.accessibility.audio,
       braille: p.accessibility.braille,
       libras: p.accessibility.libras,
-      details: p.accessibility.details || [],
+      // Flatten to plain strings for the voice model — it doesn't need the
+      // per-item confirmation state, just readable descriptions.
+      details: (p.accessibility.details || []).map((d) => d.texto),
     },
   };
 }

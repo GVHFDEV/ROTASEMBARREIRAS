@@ -13,6 +13,7 @@ import QRCodeScanner from "../components/QRCodeScanner";
 import LoginPage from "../components/LoginPage";
 import ExploreBottomSheet from "../components/ExploreBottomSheet";
 import AccessibilityMenu from "../components/AccessibilityMenu";
+import SuggestLocationSheet from "../components/SuggestLocationSheet";
 import TrailsView from "../components/TrailsView";
 import VoiceView from "../components/VoiceView";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
@@ -57,6 +58,7 @@ export default function App() {
   const [scanOrigin, setScanOrigin] = useState<"map" | "trail">("map");
   const [trailsRefreshKey, setTrailsRefreshKey] = useState(0);
   const [voiceRequestedCity, setVoiceRequestedCity] = useState<string | null>(null);
+  const [isSuggestSheetOpen, setIsSuggestSheetOpen] = useState(false);
 
   // Map Filter and Geolocation states
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -469,10 +471,34 @@ export default function App() {
               <Navigation className="w-6 h-6 stroke-[2.3]" />
             </button>
 
+            {/* Sugerir um local — discreet text link, clearly separated below
+                the recenter button so they don't crowd each other on
+                narrow/short screens. On desktop it sits right next to the
+                recenter button (same row, same vertical center) instead of
+                being pushed down toward the bottom edge. */}
+            <button
+              onClick={() => setIsSuggestSheetOpen(true)}
+              className="absolute bottom-6 right-5 z-40 text-[11px] font-bold text-text-secondary bg-white/90 px-3 py-1.5 rounded-full shadow-sm hover:text-brand underline underline-offset-2 decoration-gray-300 hover:decoration-brand transition-colors xl:bottom-6 xl:right-[76px] xl:top-auto"
+            >
+              Sugerir um local
+            </button>
+
             <BottomSheet
               point={selectedPoint}
               onClose={() => setSelectedPoint(null)}
               onViewDetails={handleViewDetails}
+            />
+
+            {/* Mounted here (inside the map's relative container), not as a
+                top-level sibling of BottomNav — same reasoning as
+                BottomSheet above: its "absolute bottom-0" then resolves
+                against this container, which ends where BottomNav begins
+                (flex siblings), so it sits ON TOP of the nav bar without
+                covering it. Moving it outside this div made it cover
+                BottomNav instead. */}
+            <SuggestLocationSheet
+              isOpen={isSuggestSheetOpen}
+              onClose={() => setIsSuggestSheetOpen(false)}
             />
           </div>
 
