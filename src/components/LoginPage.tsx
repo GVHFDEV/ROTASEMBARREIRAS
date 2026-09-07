@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Mail, ArrowLeft, Eye, EyeOff, User as UserIcon, ShieldAlert, X } from "lucide-react";
+import { FcGoogle } from "react-icons/fc";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 
@@ -25,8 +26,11 @@ interface LoginPageProps {
 }
 
 export default function LoginPage({ onClose, initialScreen = "signin" }: LoginPageProps) {
-  const { login, signup, isAnonymous, preferences } = useAuth();
+  const { login, loginWithOAuth, signup, isAnonymous, preferences } = useAuth();
   const reduceMotion = preferences?.reduce_motion_enabled ?? false;
+
+  const [oauthLoading, setOauthLoading] = useState<"google" | null>(null);
+  const [oauthError, setOauthError] = useState("");
 
   const [screen, setScreen] = useState<AuthScreen>(initialScreen);
   const [direction, setDirection] = useState(1); // 1 = forward (slide left), -1 = backward (slide right)
@@ -51,6 +55,21 @@ export default function LoginPage({ onClose, initialScreen = "signin" }: LoginPa
     setError("");
     setSuccess("");
     setScreen(nextScreen);
+  };
+
+  // Social login (Google) — redirects to provider, Supabase brings the
+  // user back via /auth/callback with an active session.
+  const handleOAuthLogin = async (provider: "google") => {
+    setOauthError("");
+    try {
+      setOauthLoading(provider);
+      await loginWithOAuth(provider);
+      // Browser navigates away here; loading state is left on until the
+      // redirect happens (or the request errors below).
+    } catch (err) {
+      setOauthError(err instanceof Error ? err.message : "Não foi possível continuar com este provedor.");
+      setOauthLoading(null);
+    }
   };
 
   // Submit Sign In (Screen 2)
@@ -211,6 +230,39 @@ export default function LoginPage({ onClose, initialScreen = "signin" }: LoginPa
                     <h3 className="text-center font-black text-xl lg:text-2xl text-text-main mt-4 lg:mt-6 mb-4">
                       Bem-vindo de volta
                     </h3>
+
+                    {/* Social Login - Google & Facebook */}
+                    <div className="flex flex-col gap-2.5 max-w-sm mx-auto w-full">
+                      <button
+                        type="button"
+                        onClick={() => handleOAuthLogin("google")}
+                        disabled={oauthLoading !== null}
+                        className="w-full flex items-center justify-center gap-3 bg-white border border-gray-200 text-text-main font-bold text-sm py-3.5 px-6 rounded-full hover:bg-gray-50 active:scale-95 transition-all shadow-sm h-13 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        {oauthLoading === "google" ? (
+                          <div className="w-5 h-5 border-2 border-text-secondary border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <>
+                            <FcGoogle className="w-5 h-5" />
+                            Continuar com Google
+                          </>
+                        )}
+                      </button>
+
+                      {oauthError && (
+                        <p role="alert" className="text-xs font-bold text-red-600 px-3 flex items-start gap-1.5 leading-relaxed">
+                          <ShieldAlert className="w-4 h-4 flex-shrink-0" />
+                          <span>{oauthError}</span>
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Divider between social buttons and email login */}
+                    <div className="flex items-center gap-3 max-w-sm mx-auto w-full my-5">
+                      <div className="flex-1 h-px bg-gray-200" />
+                      <span className="text-[11px] font-black text-text-secondary uppercase tracking-wider">ou</span>
+                      <div className="flex-1 h-px bg-gray-200" />
+                    </div>
 
                     {/* Form - Translated */}
                     <form onSubmit={handleSignIn} className="flex flex-col gap-3.5 max-w-sm mx-auto w-full">

@@ -13,6 +13,7 @@ interface AuthContextType {
   loading: boolean;
   isAnonymous: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithOAuth: (provider: "google") => Promise<void>;
   signup: (email: string, password: string, fullName: string) => Promise<{ needsEmailConfirmation: boolean }>;
   logout: () => Promise<void>;
   updatePreferences: (
@@ -144,6 +145,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw new Error(mapAuthError(error.message));
   };
 
+  // Redirects the browser to the provider's consent screen; Supabase then
+  // sends the user to /auth/callback with a code we exchange for a session.
+  // Provider must be enabled in Supabase Dashboard > Authentication >
+  // Providers first (see setup instructions).
+  const loginWithOAuth = async (provider: "google") => {
+    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/auth/callback` : undefined;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo },
+    });
+    if (error) throw new Error(mapAuthError(error.message));
+  };
+
   const signup = async (email: string, password: string, fullName: string) => {
     if (user?.is_anonymous) {
       // Convert anonymous account into permanent email/password user
@@ -214,7 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, session, profile, preferences, loading, isAnonymous, login, signup, logout, updatePreferences, refreshProfile }}
+      value={{ user, session, profile, preferences, loading, isAnonymous, login, loginWithOAuth, signup, logout, updatePreferences, refreshProfile }}
     >
       {children}
     </AuthContext.Provider>

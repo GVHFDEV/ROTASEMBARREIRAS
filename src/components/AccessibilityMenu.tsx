@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence, useMotionValue, PanInfo } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useDragControls } from "framer-motion";
 import {
   Contrast,
   Volume2,
@@ -34,6 +34,15 @@ interface AccessibilityMenuProps {
 const DRAG_POSITION_STORAGE_KEY = "accessibility-btn-position";
 // Approximate button footprint (w-13/h-13 = 52px) used to keep it clamped on screen.
 const BUTTON_SIZE = 52;
+// Minimum pointer displacement (px) before a press is treated as a drag
+// instead of a click. Framer Motion's own tap gesture uses a 3px threshold
+// to tell a tap from a drag/pan; we use a slightly larger one (10px) since
+// this app targets elderly/motor-impaired users whose taps naturally wobble
+// a few pixels while pressing. A time-based "hold to drag" delay was tried
+// first but real presses routinely last longer than any short delay, so it
+// kept mis-firing as a drag on ordinary clicks — displacement, not time, is
+// the correct signal here.
+const DRAG_ARM_THRESHOLD_PX = 10;
 
 export default function AccessibilityMenu({
   isHighContrast,
@@ -56,6 +65,11 @@ export default function AccessibilityMenu({
   const dragX = useMotionValue(0);
   const dragY = useMotionValue(0);
   const wasDraggedRef = useRef(false);
+  const dragControls = useDragControls();
+  // Origin point of the current press, used to measure displacement before
+  // deciding whether this gesture is a drag or a click.
+  const pressOriginRef = useRef<{ x: number; y: number } | null>(null);
+  const dragArmedRef = useRef(false);
 
   // Restore a previously saved position (clamped to the current viewport
   // in case the window was resized since it was last saved).
@@ -76,14 +90,7 @@ export default function AccessibilityMenu({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleDragEnd = (
-    _event: MouseEvent | TouchEvent | PointerEvent,
-    info: PanInfo
-  ) => {
-    // Small movements are treated as a click/tap rather than a drag.
-    if (Math.abs(info.offset.x) > 4 || Math.abs(info.offset.y) > 4) {
-      wasDraggedRef.current = true;
-    }
+  const handleDragEnd = () => {
     try {
       window.localStorage.setItem(
         DRAG_POSITION_STORAGE_KEY,
@@ -100,6 +107,32 @@ export default function AccessibilityMenu({
       return;
     }
     setIsOpen(true);
+  };
+
+  // Displacement-based drag arming: record where the press started, then
+  // only hand the gesture to Framer Motion's drag controller once the
+  // pointer has actually moved past DRAG_ARM_THRESHOLD_PX. Until that
+  // happens the press is indistinguishable from a click, so onClick is left
+  // free to fire normally — no timer, no guessing how long a "real" press
+  // should take.
+  const handlePointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+    pressOriginRef.current = { x: event.clientX, y: event.clientY };
+    dragArmedRef.current = false;
+  };
+
+  const handlePointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (dragArmedRef.current || !pressOriginRef.current) return;
+    const dx = event.clientX - pressOriginRef.current.x;
+    const dy = event.clientY - pressOriginRef.current.y;
+    if (Math.hypot(dx, dy) < DRAG_ARM_THRESHOLD_PX) return;
+    dragArmedRef.current = true;
+    wasDraggedRef.current = true;
+    dragControls.start(event);
+  };
+
+  const resetPress = () => {
+    pressOriginRef.current = null;
+    dragArmedRef.current = false;
   };
 
   // High contrast styling overrides
@@ -125,21 +158,28 @@ export default function AccessibilityMenu({
         {/* Floating Accessibility Circle Button - draggable, defaults to Left Side */}
         <motion.button
           drag
+          dragListener={false}
+          dragControls={dragControls}
           dragConstraints={dragBoundsRef}
           dragMomentum={false}
           dragElastic={reduceMotionActive ? 0 : 0.08}
           onDragEnd={handleDragEnd}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={resetPress}
+          onPointerLeave={resetPress}
+          onPointerCancel={resetPress}
           style={{ x: dragX, y: dragY, transition: reduceMotionActive ? "none" : undefined }}
           onClick={handleButtonClick}
           className={`pointer-events-auto absolute left-4 top-[38%] -translate-y-1/2 w-13 h-13 rounded-full shadow-2xl flex items-center justify-center ${
-            reduceMotionActive ? "" : "transition-colors active:scale-90 hover:scale-105"
-          } cursor-grab active:cursor-grabbing touch-none border xl:top-4 xl:left-auto xl:right-4 xl:translate-y-0 ${
+            reduceMotionActive ? "" : "transition-colors hover:scale-105"
+          } cursor-pointer active:cursor-grabbing touch-none border xl:top-4 xl:left-auto xl:right-4 xl:translate-y-0 ${
             isHighContrast
               ? "bg-yellow-400 border-white text-black font-black"
               : "bg-brand border-brand/10 text-white"
           }`}
-          aria-label="Abrir Tela de Acessibilidade. Arraste para reposicionar o botão."
-          title="Abrir Central de Acessibilidade (arraste para mover)"
+          aria-label="Abrir Tela de Acessibilidade. Segure e arraste para reposicionar o botão."
+          title="Clique para abrir. Segure e arraste para mover."
         >
           <FaUniversalAccess className="w-7 h-7" />
         </motion.button>
