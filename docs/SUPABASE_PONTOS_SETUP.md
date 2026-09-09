@@ -42,9 +42,11 @@ Essa URL completa vai direto nas colunas `imagem_capa`, `galeria_imagens`, `audi
 
 ## 5. Cadastrar ponto via ferramenta interna (recomendado) ou Table Editor
 
-Existe uma ferramenta interna em `/admin/pontos` (`src/app/admin/pontos/page.tsx`) que preenche a maior parte deste formulário automaticamente: o campo de endereço usa a mesma busca Photon do app, e latitude/longitude são capturados automaticamente do resultado selecionado (sem precisar consultar o Google Maps manualmente). Requer rodar `supabase/migrations_pontos_insert.sql` (adiciona a policy de INSERT para `authenticated`) e estar logado com uma conta não-anônima.
+Existe um painel administrativo completo em `/admin` (`src/app/admin/`), servido no subdomínio `admin.rotasembarreiras.com.br` via rewrite em `proxy.ts`. A tela de cadastro de pontos preenche a maior parte deste formulário automaticamente: o campo de endereço usa a mesma busca Photon do app, e latitude/longitude são capturados automaticamente do resultado selecionado (sem precisar consultar o Google Maps manualmente).
 
-**Atenção de segurança:** essa rota não tem controle de admin/role — qualquer conta autenticada (não visitante) consegue cadastrar pontos por ela. Mantenha a URL interna/não divulgada até que um sistema de papéis (`is_admin`) seja adicionado — ver comentário no topo de `migrations_pontos_insert.sql`.
+Requer rodar `supabase/migrations_admin.sql` (adiciona `profiles.is_admin` e restringe INSERT/UPDATE/DELETE em `pontos`/`sugestoes_locais` a contas com `is_admin = true`) e marcar sua conta como admin com o UPDATE de exemplo no final desse arquivo. `migrations_pontos_insert.sql` está obsoleto — a policy que ele criava (qualquer autenticado podia inserir) é removida pela migração nova.
+
+O acesso ao painel é bloqueado em duas camadas: `src/app/admin/layout.tsx` verifica `profile.is_admin` no cliente (UX), e as policies RLS (`pontos_*_admin`, `sugestoes_locais_*_admin`) bloqueiam de fato no banco mesmo que o gate do cliente seja contornado. Contas anônimas/visitante nunca passam.
 
 Alternativa manual (sem preencher nenhum campo automaticamente):
 

@@ -176,15 +176,46 @@ export interface NewPontoInput {
   pasta_imagens: string | null;
 }
 
-/** Inserts a new ponto row. Requires the `pontos_insert_authenticated` RLS
- * policy (see migrations_pontos_insert.sql) — without it this throws a
- * row-level security error for every caller, by design (writes are
- * otherwise Table-Editor-only). */
+/** Inserts a new ponto row. Requires the `pontos_insert_admin` RLS policy
+ * (see migrations_admin.sql) — the caller's profile must have
+ * is_admin = true, otherwise this throws a row-level security error. */
 export async function createPonto(input: NewPontoInput): Promise<TouristPoint> {
   const supabase = createClient();
   const { data, error } = await supabase.from("pontos").insert(input).select("*").single();
   if (error) throw error;
   return rowToPoint(data as PontoRow);
+}
+
+/** Fields the admin panel's inline editor can update on an existing ponto.
+ * Same shape as NewPontoInput but every field optional (partial update). */
+export type PontoUpdateInput = Partial<NewPontoInput>;
+
+/** Fetches every ponto row for the admin listing — no client cache (the
+ * public fetchTouristPoints cache would go stale the moment an admin
+ * edits a row), ordered newest-first so new cadastros show up top. */
+export async function fetchAllPontosAdmin(): Promise<TouristPoint[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("pontos").select("*").order("criado_em", { ascending: false });
+  if (error) throw error;
+  return (data as PontoRow[]).map(rowToPoint);
+}
+
+/** Updates a ponto row. Requires the `pontos_update_admin` RLS policy
+ * (see migrations_admin.sql) — non-admin callers get a row-level security
+ * error. */
+export async function updatePonto(id: string, input: PontoUpdateInput): Promise<TouristPoint> {
+  const supabase = createClient();
+  const { data, error } = await supabase.from("pontos").update(input).eq("id", id).select("*").single();
+  if (error) throw error;
+  return rowToPoint(data as PontoRow);
+}
+
+/** Deletes a ponto row. Requires the `pontos_delete_admin` RLS policy
+ * (see migrations_admin.sql). */
+export async function deletePonto(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from("pontos").delete().eq("id", id);
+  if (error) throw error;
 }
 
 // ---------------------------------------------------------------------------

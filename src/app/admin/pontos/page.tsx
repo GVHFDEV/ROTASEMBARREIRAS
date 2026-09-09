@@ -1,10 +1,16 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { MapPin, Loader2, Check, ShieldAlert, MapPinned } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { MapPin, Loader2, Check, MapPinned, Pencil, Trash2, X, Save, Plus } from "lucide-react";
 import { searchAddresses, AddressResult } from "@/services/geocodingService";
-import { createPonto, NewPontoInput } from "@/services/pointsService";
+import {
+  createPonto,
+  deletePonto,
+  fetchAllPontosAdmin,
+  updatePonto,
+  NewPontoInput,
+} from "@/services/pointsService";
+import type { TouristPoint } from "@/types/point";
 
 // Same debounce delay used elsewhere in the app for Photon requests.
 const PHOTON_DEBOUNCE_MS = 400;
@@ -31,20 +37,48 @@ const emptyForm = {
   acessibilidade_libras: false,
 };
 
+type EditableFields = Pick<
+  TouristPoint,
+  "name" | "category" | "city" | "description"
+> & {
+  wheelchair: boolean;
+  audio: boolean;
+  braille: boolean;
+  libras: boolean;
+};
+
+function pointToEditable(p: TouristPoint): EditableFields {
+  return {
+    name: p.name,
+    category: p.category,
+    city: p.city,
+    description: p.description,
+    wheelchair: p.accessibility.wheelchair,
+    audio: p.accessibility.audio,
+    braille: p.accessibility.braille,
+    libras: p.accessibility.libras,
+  };
+}
+
 /**
- * Internal tool for registering new `pontos` rows — NOT the end-user
- * search/map screen. Address field auto-geocodes via Photon (same
- * integration as SearchBar/SuggestLocationSheet) and fills latitude/
- * longitude automatically, removing the manual "look up on Google Maps"
- * step described in docs/SUPABASE_PONTOS_SETUP.md.
+ * Admin panel — /admin/pontos (served at admin.rotasembarreiras.com.br/pontos
+ * via proxy.ts's subdomain rewrite). Guarded by src/app/admin/layout.tsx
+ * (is_admin check) and by the pontos_insert/update/delete_admin RLS
+ * policies server-side (supabase/migrations_admin.sql).
  *
- * Access: any authenticated (non-guest) account can reach this route and
- * successfully insert — this project has no admin/role system yet (see
- * migrations_pontos_insert.sql for the exact RLS caveat). Treat this URL
- * as internal/unlisted, not a hardened admin panel.
+ * Two sections: cadastro form (address auto-geocoded via Photon, same
+ * integration as SearchBar/SuggestLocationSheet) and a listing of every
+ * ponto with inline edit for the text/accessibility fields + delete.
  */
 export default function AdminPontosPage() {
-  const { user, isAnonymous, loading: authLoading } = useAuth();
+  const [points, setPoints] = useState<TouristPoint[]>([]);
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState("");
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<EditableFields | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [form, setForm] = useState(emptyForm);
   const [enderecoQuery, setEnderecoQuery] = useState("");
@@ -58,6 +92,23 @@ export default function AdminPontosPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  const loadPoints = async () => {
+    setListLoading(true);
+    setListError("");
+    try {
+      const data = await fetchAllPontosAdmin();
+      setPoints(data);
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : "Não foi possível carregar os pontos.");
+    } finally {
+      setListLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPoints();
+  }, []);
 
   // Debounced Photon geocoding — identical pattern to SearchBar/SuggestLocationSheet.
   useEffect(() => {
@@ -154,38 +205,62 @@ export default function AdminPontosPage() {
       setForm(emptyForm);
       setEnderecoQuery("");
       setSelectedAddress(null);
+      await loadPoints();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível cadastrar o ponto. Tente novamente.");
       setStatus("error");
     }
   };
 
-  if (authLoading) {
-    return (
-      <main className="w-full min-h-dvh bg-bg-app flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-brand animate-spin" />
-      </main>
-    );
-  }
+  const startEdit = (point: TouristPoint) => {
+    setEditingId(point.id);
+    setEditDraft(pointToEditable(point));
+  };
 
-  if (isAnonymous || !user) {
-    return (
-      <main className="w-full min-h-dvh bg-bg-app flex items-center justify-center p-6">
-        <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-md max-w-md w-full flex flex-col items-center text-center gap-3">
-          <span className="w-14 h-14 rounded-full bg-brand-light text-brand flex items-center justify-center">
-            <ShieldAlert className="w-7 h-7" />
-          </span>
-          <h1 className="text-lg font-black text-text-main">Acesso restrito</h1>
-          <p className="text-sm text-text-secondary font-medium leading-relaxed">
-            Esta é uma ferramenta interna de cadastro de pontos. Entre com uma conta cadastrada no app para continuar.
-          </p>
-        </div>
-      </main>
-    );
-  }
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditDraft(null);
+  };
+
+  const saveEdit = async (id: string) => {
+    if (!editDraft) return;
+    setSavingId(id);
+    try {
+      await updatePonto(id, {
+        nome: editDraft.name.trim(),
+        categoria: editDraft.category.trim(),
+        cidade: editDraft.city.trim(),
+        descricao_curta: editDraft.description.trim() || null,
+        acessibilidade_rampa: editDraft.wheelchair,
+        acessibilidade_audio: editDraft.audio,
+        acessibilidade_braille: editDraft.braille,
+        acessibilidade_libras: editDraft.libras,
+      });
+      setEditingId(null);
+      setEditDraft(null);
+      await loadPoints();
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : "Não foi possível salvar as alterações.");
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!window.confirm(`Excluir "${name}"? Esta ação não pode ser desfeita.`)) return;
+    setDeletingId(id);
+    try {
+      await deletePonto(id);
+      setPoints((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : "Não foi possível excluir o ponto.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
-    <main className="w-full min-h-dvh bg-bg-app py-10 px-6 flex justify-center">
+    <main className="w-full min-h-dvh bg-bg-app py-10 px-6 flex flex-col items-center gap-10">
       <div ref={containerRef} className="w-full max-w-xl flex flex-col gap-6">
         <div>
           <h1 className="text-2xl font-black text-text-main flex items-center gap-2.5">
@@ -193,7 +268,7 @@ export default function AdminPontosPage() {
             Cadastrar novo ponto
           </h1>
           <p className="text-sm text-text-secondary font-medium mt-1.5 leading-relaxed">
-            Ferramenta interna — não faz parte da busca do usuário final. O endereço abaixo usa a mesma busca Photon do app: selecione um resultado para preencher latitude/longitude automaticamente.
+            O endereço abaixo usa a mesma busca Photon do app: selecione um resultado para preencher latitude/longitude automaticamente.
           </p>
         </div>
 
@@ -377,10 +452,166 @@ export default function AdminPontosPage() {
                 Cadastrando...
               </>
             ) : (
-              "Cadastrar ponto"
+              <>
+                <Plus className="w-4 h-4" />
+                Cadastrar ponto
+              </>
             )}
           </button>
         </form>
+      </div>
+
+      {/* Listing + inline edit */}
+      <div className="w-full max-w-4xl flex flex-col gap-4">
+        <h2 className="text-lg font-black text-text-main">Pontos cadastrados ({points.length})</h2>
+
+        {listError && <p className="text-sm font-bold text-brand">{listError}</p>}
+
+        {listLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 text-brand animate-spin" />
+          </div>
+        ) : points.length === 0 ? (
+          <p className="text-sm text-text-secondary font-medium">Nenhum ponto cadastrado ainda.</p>
+        ) : (
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-md overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-left text-xs font-black uppercase tracking-wider text-text-secondary">
+                  <th className="px-4 py-3">Nome</th>
+                  <th className="px-4 py-3">Categoria</th>
+                  <th className="px-4 py-3">Cidade</th>
+                  <th className="px-4 py-3">Descrição curta</th>
+                  <th className="px-4 py-3">Acessibilidade</th>
+                  <th className="px-4 py-3 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {points.map((point) => {
+                  const isEditing = editingId === point.id;
+                  return (
+                    <tr key={point.id} className="border-b border-gray-50 last:border-b-0 align-top">
+                      {isEditing && editDraft ? (
+                        <>
+                          <td className="px-4 py-2">
+                            <input
+                              value={editDraft.name}
+                              onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })}
+                              className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand/40"
+                            />
+                          </td>
+                          <td className="px-4 py-2">
+                            <input
+                              value={editDraft.category}
+                              onChange={(e) => setEditDraft({ ...editDraft, category: e.target.value })}
+                              className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand/40"
+                            />
+                          </td>
+                          <td className="px-4 py-2">
+                            <input
+                              value={editDraft.city}
+                              onChange={(e) => setEditDraft({ ...editDraft, city: e.target.value })}
+                              className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand/40"
+                            />
+                          </td>
+                          <td className="px-4 py-2">
+                            <textarea
+                              value={editDraft.description}
+                              onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
+                              rows={2}
+                              className="w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm font-semibold resize-none focus:outline-none focus:ring-2 focus:ring-brand/40"
+                            />
+                          </td>
+                          <td className="px-4 py-2">
+                            <div className="flex flex-col gap-1">
+                              {(
+                                [
+                                  ["wheelchair", "Rampas"],
+                                  ["audio", "Áudio"],
+                                  ["braille", "Braille"],
+                                  ["libras", "Libras"],
+                                ] as const
+                              ).map(([key, label]) => (
+                                <label key={key} className="flex items-center gap-1.5 text-xs font-semibold text-text-main">
+                                  <input
+                                    type="checkbox"
+                                    checked={editDraft[key]}
+                                    onChange={(e) => setEditDraft({ ...editDraft, [key]: e.target.checked })}
+                                    className="w-3.5 h-3.5 accent-brand"
+                                  />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => saveEdit(point.id)}
+                                disabled={savingId === point.id}
+                                className="p-2 rounded-full bg-brand text-white hover:bg-brand-dark disabled:opacity-50 transition-colors"
+                                aria-label="Salvar"
+                              >
+                                {savingId === point.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={cancelEdit}
+                                className="p-2 rounded-full bg-gray-100 text-text-secondary hover:bg-gray-200 transition-colors"
+                                aria-label="Cancelar"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-4 py-3 font-bold text-text-main">{point.name}</td>
+                          <td className="px-4 py-3 text-text-secondary font-semibold">{point.category}</td>
+                          <td className="px-4 py-3 text-text-secondary font-semibold">{point.city}</td>
+                          <td className="px-4 py-3 text-text-secondary max-w-xs truncate">{point.description}</td>
+                          <td className="px-4 py-3 text-text-secondary text-xs font-semibold">
+                            {[
+                              point.accessibility.wheelchair && "Rampas",
+                              point.accessibility.audio && "Áudio",
+                              point.accessibility.braille && "Braille",
+                              point.accessibility.libras && "Libras",
+                            ]
+                              .filter(Boolean)
+                              .join(", ") || "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => startEdit(point)}
+                                className="p-2 rounded-full bg-gray-100 text-text-secondary hover:bg-gray-200 transition-colors"
+                                aria-label={`Editar ${point.name}`}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(point.id, point.name)}
+                                disabled={deletingId === point.id}
+                                className="p-2 rounded-full bg-gray-100 text-brand hover:bg-brand-light disabled:opacity-50 transition-colors"
+                                aria-label={`Excluir ${point.name}`}
+                              >
+                                {deletingId === point.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </main>
   );

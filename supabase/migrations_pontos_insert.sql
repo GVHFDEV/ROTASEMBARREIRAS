@@ -1,4 +1,10 @@
 -- ============================================================
+-- OBSOLETE — superseded by supabase/migrations_admin.sql, which drops
+-- the "pontos_insert_authenticated" policy created below and replaces
+-- it with real is_admin-gated policies (pontos_insert_admin, etc).
+-- Kept only for history; do not re-run this file after migrations_admin.sql.
+-- ============================================================
+--
 -- Rota sem Barreiras — INSERT policy for public.pontos (internal
 -- cadastro tool at /admin/pontos)
 -- ADDITIVE ONLY. Does NOT drop/reset anything from migrations.sql.

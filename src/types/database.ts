@@ -112,6 +112,27 @@ export interface Profile {
   full_name: string | null;
   avatar_url: string | null;
   created_at: string;
+  /** Grants access to /admin/*. See supabase/migrations_admin.sql. Default
+   * false — set manually per-account (Table Editor or the SQL snippet at
+   * the bottom of that migration), never settable from the client. */
+  is_admin: boolean;
+}
+
+/** Row shape of public.sugestoes_locais (admin triage queue for the
+ * "Sugerir um local" feature). Never read/written by regular users —
+ * SELECT/UPDATE/DELETE are admin-only RLS policies; INSERT only via the
+ * suggest_local RPC. See supabase/migrations_sugestoes.sql +
+ * migrations_admin.sql. */
+export interface SugestaoLocalRow {
+  id: string;
+  nome: string;
+  endereco: string | null;
+  latitude: number;
+  longitude: number;
+  apoios: number;
+  user_id: string | null;
+  status: "pendente" | "aprovado" | "rejeitado";
+  criado_em: string;
 }
 
 /** Community condition report for a point. Append-only; "active" condition is
