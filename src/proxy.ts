@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { updateSession } from "./src/lib/supabase/middleware";
+import { updateSession } from "./lib/supabase/middleware";
 
 // Subdomain that serves the admin panel. Overridable via env for local/
 // preview testing (e.g. admin.localhost:3000, admin-preview.vercel.app).
